@@ -39,7 +39,6 @@ public class MyBroadcastReceiver extends BroadcastReceiver {
     filter.addAction(ACTION_UPDATE_USB);
     filter.addAction(ACTION_UPDATE_DEVICE_LIST);
     filter.addAction(ACTION_CONTROL);
-    filter.addAction(ACTION_SCREEN_OFF);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) context.registerReceiver(this, filter, Context.RECEIVER_EXPORTED);
     else context.registerReceiver(this, filter);
   }
@@ -53,7 +52,6 @@ public class MyBroadcastReceiver extends BroadcastReceiver {
     String action = intent.getAction();
     if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) AppData.uiHandler.postDelayed(() -> onConnectUsb(context, intent), 1000);
     else if (ACTION_UPDATE_USB.equals(action) || ACTION_USB_PERMISSION.equals(action) || UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) updateUSB();
-    else if (ACTION_SCREEN_OFF.equals(action)) handleScreenOff();
     else if (ACTION_UPDATE_DEVICE_LIST.equals(action)) deviceListAdapter.update();
     else if (ACTION_CONTROL.equals(action)) handleControl(intent);
   }
@@ -61,10 +59,6 @@ public class MyBroadcastReceiver extends BroadcastReceiver {
 
   public void setDeviceListAdapter(DeviceListAdapter deviceListAdapter) {
     this.deviceListAdapter = deviceListAdapter;
-  }
-
-  private void handleScreenOff() {
-    for (Device device : AdbTools.devicesList) Client.sendAction(device.uuid, "close", null, 0);
   }
 
   private void handleControl(Intent intent) {

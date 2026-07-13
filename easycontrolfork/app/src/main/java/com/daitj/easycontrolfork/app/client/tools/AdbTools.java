@@ -61,11 +61,11 @@ public class AdbTools {
         String tempFileName = fileName;
         Adb adb = connectADB(device);
         // 因为糟糕的ADB，如果使用中文名的话，会崩溃，所以此处使用随机名词
-        if (!Pattern.compile("^[a-zA-Z0-9\\(\\)\\-\\_\\[\\]\\.]+$").matcher(tempFileName).matches()) {
+        if (!Pattern.compile("^[a-zA-Z0-9 \\(\\)\\-\\_\\[\\]\\.]+$").matcher(tempFileName).matches()) {
           int dotIndex = tempFileName.lastIndexOf(".");
           tempFileName = UUID.randomUUID() + (dotIndex == -1 ? "" : tempFileName.substring(dotIndex));
         }
-        adb.pushFile(file, "/sdcard/Download/Easycontrol/" + tempFileName, handleProcess);
+        adb.pushFile(file, "/sdcard/Download/" + tempFileName, handleProcess);
       } catch (Exception ignored) {
         handleProcess.run(-1);
       }
