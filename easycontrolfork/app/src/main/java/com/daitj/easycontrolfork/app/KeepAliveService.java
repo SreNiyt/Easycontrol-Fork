@@ -61,14 +61,7 @@ public class KeepAliveService extends Service {
             startForeground(NOTIFICATION_ID, notification);
         }
 
-        return START_NOT_STICKY;
-    }
-
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-        stopForeground(true);
-        stopSelf();
-        super.onTaskRemoved(rootIntent);
+        return START_STICKY;
     }
 
     @Override
