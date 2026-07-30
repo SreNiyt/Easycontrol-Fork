@@ -20,6 +20,7 @@ import com.daitj.easycontrolfork.app.entity.AppData;
 import com.daitj.easycontrolfork.app.entity.Device;
 import com.daitj.easycontrolfork.app.helper.PublicTools;
 import com.daitj.easycontrolfork.app.helper.ViewTools;
+import com.daitj.easycontrolfork.app.KeepAliveService;
 
 public class Client {
   private static final HashMap<String, Client> allClient = new HashMap<>();
