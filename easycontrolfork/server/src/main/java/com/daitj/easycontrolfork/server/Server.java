@@ -38,7 +38,7 @@ public final class Server {
 
   private static final Object object = new Object();
 
-  private static final int timeoutDelay = 1000 * 60 * 60 * 3;
+  private static final int timeoutDelay = 1000 * 60 * 60 * 12;
   private static final int startupTimeout = 1000 * 20;
 
   public static void main(String... args) {
