@@ -75,7 +75,6 @@ public class ClientStream {
       serverName,
       null
   );
-    }
     shell = adb.getShell();
     shell.write(ByteBuffer.wrap(("app_process -Djava.class.path=" + serverName + " / com.daitj.easycontrolfork.server.Server"
       + " serverPort=" + device.serverPort
