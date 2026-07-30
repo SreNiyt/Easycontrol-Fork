@@ -91,9 +91,13 @@ public class FullActivity extends Activity {
 public void updateRemoteOrientation(int width, int height) {
   if (!autoRotate || width <= 0 || height <= 0) return;
 
-  int orientation = width > height
-      ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-      : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+  int orientation;
+
+    if (width > height) {
+      orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+    } else {
+      orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
+    }
 
   if (getRequestedOrientation() != orientation) {
     setRequestedOrientation(orientation);
