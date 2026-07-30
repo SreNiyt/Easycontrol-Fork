@@ -137,6 +137,6 @@ public class AudioDecode {
   private void setLoudnessEnhancer() {
     loudnessEnhancer = new LoudnessEnhancer(audioTrack.getAudioSessionId());
     loudnessEnhancer.setTargetGain(3000);
-    loudnessEnhancer.setEnabled(true);
+    loudnessEnhancer.setEnabled(false);
   }
 }
