@@ -158,6 +158,7 @@ public void updateRemoteOrientation(int width, int height) {
 
   private void changeBarView() {
     boolean toShowView = activityFullBinding.barView.getVisibility() == View.GONE;
+    boolean isLandscape = lastOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE || lastOrientation == ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
     ViewTools.viewAnim(activityFullBinding.barView, toShowView, 0, PublicTools.dp2px(40f) * (isLandscape ? -1 : 1), (isStart -> {
       if (isStart && toShowView) activityFullBinding.barView.setVisibility(View.VISIBLE);
       else if (!isStart && !toShowView) activityFullBinding.barView.setVisibility(View.GONE);
