@@ -7,6 +7,9 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Objects;
 
+import android.content.Intent;
+import android.os.Build;
+
 import com.daitj.easycontrolfork.app.client.tools.AdbTools;
 import com.daitj.easycontrolfork.app.client.tools.ClientController;
 import com.daitj.easycontrolfork.app.client.tools.ClientPlayer;
@@ -36,6 +39,24 @@ public class Client {
     // 连接
     clientStream = new ClientStream(device, bool -> {
       if (bool) {
+
+	Intent serviceIntent = new Intent(
+	    AppData.applicationContext,
+	    KeepAliveService.class
+	);
+
+	serviceIntent.setAction(KeepAliveService.ACTION_START);
+	serviceIntent.putExtra(
+		    KeepAliveService.EXTRA_HOST,
+	    device.name != null ? device.name : device.uuid
+	);
+
+	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+	    AppData.applicationContext.startForegroundService(serviceIntent);
+	} else {
+	    AppData.applicationContext.startService(serviceIntent);
+	}
+
         allClient.put(device.uuid, this);
         // 控制器、播放器
         clientController = new ClientController(device, clientStream, () -> clientPlayer = new ClientPlayer(device.uuid, clientStream));
@@ -88,6 +109,14 @@ public class Client {
   private void close(ByteBuffer byteBuffer) {
     if (isClosed) return;
     isClosed = true;
+    Intent serviceIntent = new Intent(
+        AppData.applicationContext,
+            KeepAliveService.class
+            );
+
+            serviceIntent.setAction(KeepAliveService.ACTION_STOP);
+
+            AppData.applicationContext.startService(serviceIntent);
     // 临时设备
     boolean isTempDevice = device.isTempDevice();
     // 更新数据库

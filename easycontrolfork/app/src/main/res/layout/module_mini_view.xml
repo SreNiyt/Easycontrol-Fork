@@ -1,61 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-  xmlns:tools="http://schemas.android.com/tools"
-  android:layout_width="wrap_content"
-  android:layout_height="wrap_content">
-
-  <FrameLayout
+<FrameLayout
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    android:background="@drawable/background_cron"
-    android:elevation="4dp">
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <LinearLayout
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_margin="5dp"
-      android:background="@drawable/background_cron"
-      android:backgroundTint="@color/background"
-      android:orientation="vertical"
-      tools:ignore="UselessParent">
+    <FrameLayout
+        android:background="@drawable/background_cron"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="4.0dip"
+        android:elevation="3.0dip">
 
-      <ImageView
-        android:id="@+id/button_small"
-        android:layout_width="45dp"
-        android:layout_height="40dp"
-        android:paddingStart="10dp"
-        android:paddingTop="10dp"
-        android:paddingEnd="10dp"
-        android:paddingBottom="5dp"
-        android:src="@drawable/window_restore"
-        android:tint="@color/onCardBackground" />
+        <LinearLayout
+            android:orientation="vertical"
+            android:id="@+id/mini_control_layout"
+            android:background="@drawable/background_cron"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="3.0dip"
+            android:backgroundTint="@color/background">
 
-      <FrameLayout
-        android:layout_width="20dp"
-        android:layout_height="10dp"
-        android:layout_gravity="center">
+            <ImageView
+                android:id="@+id/button_small"
+                android:paddingTop="6.0dip"
+                android:paddingBottom="3.0dip"
+                android:layout_width="30.0dip"
+                android:layout_height="27.0dip"
+                android:src="@drawable/window_restore"
+                android:tint="@color/onCardBackground"
+                android:paddingStart="6.0dip"
+                android:paddingEnd="6.0dip" />
 
-        <View
-          android:layout_width="20dp"
-          android:layout_height="3dp"
-          android:layout_gravity="center"
-          android:background="@drawable/background_cron"
-          android:backgroundTint="@color/clientBar"
-          android:focusable="false" />
-      </FrameLayout>
+            <FrameLayout
+                android:layout_gravity="center"
+                android:layout_width="14.0dip"
+                android:layout_height="6.0dip">
 
-      <ImageView
-        android:id="@+id/button_full"
-        android:layout_width="45dp"
-        android:layout_height="40dp"
-        android:paddingStart="10dp"
-        android:paddingTop="5dp"
-        android:paddingEnd="10dp"
-        android:paddingBottom="10dp"
-        android:src="@drawable/expand"
-        android:tint="@color/onCardBackground" />
-    </LinearLayout>
-  </FrameLayout>
+                <View
+                    android:layout_gravity="center"
+                    android:background="@drawable/background_cron"
+                    android:focusable="false"
+                    android:layout_width="14.0dip"
+                    android:layout_height="2.0dip"
+                    android:backgroundTint="@color/clientBar" />
 
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/button_full"
+                android:paddingTop="3.0dip"
+                android:paddingBottom="6.0dip"
+                android:layout_width="30.0dip"
+                android:layout_height="27.0dip"
+                android:src="@drawable/expand"
+                android:tint="@color/onCardBackground"
+                android:paddingStart="6.0dip"
+                android:paddingEnd="6.0dip"
+                android:visibility="gone" />
+
+        </LinearLayout>
+    </FrameLayout>
 </FrameLayout>
