@@ -156,25 +156,14 @@ public void updateRemoteOrientation(int width, int height) {
     activityFullBinding.buttonMore.setImageTintList(ColorStateList.valueOf(getResources().getColor(isShow ? R.color.onCardBackground : R.color.onBlackBacnground)));
   }
 
-private void changeBarView() {
-  boolean toShowView = activityFullBinding.barView.getVisibility() == View.GONE;
+  private void changeBarView() {
+    boolean toShowView = activityFullBinding.barView.getVisibility() == View.GONE;
+    ViewTools.viewAnim(activityFullBinding.barView, toShowView, 0, PublicTools.dp2px(40f) * (isLandscape ? -1 : 1), (isStart -> {
+      if (isStart && toShowView) activityFullBinding.barView.setVisibility(View.VISIBLE);
+      else if (!isStart && !toShowView) activityFullBinding.barView.setVisibility(View.GONE);
+    }));
+  }
 
-  ViewTools.viewAnim(
-      activityFullBinding.barView,
-      toShowView,
-      0,
-      PublicTools.dp2px(40f) *
-          (getResources().getConfiguration().orientation
-              == Configuration.ORIENTATION_LANDSCAPE ? -1 : 1),
-      (isStart -> {
-        if (isStart && toShowView) {
-          activityFullBinding.barView.setVisibility(View.VISIBLE);
-        } else if (!isStart && !toShowView) {
-          activityFullBinding.barView.setVisibility(View.GONE);
-        }
-      })
-  );
-}
   // 设置键盘监听
   private void setKeyEvent() {
     activityFullBinding.editText.requestFocus();
