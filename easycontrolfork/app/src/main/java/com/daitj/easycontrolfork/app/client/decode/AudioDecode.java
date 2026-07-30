@@ -35,7 +35,7 @@ public class AudioDecode {
       try {
         ByteBuffer buffer = decodec.getOutputBuffer(outIndex);
         if (buffer == null) return;
-        audioTrack.write(buffer, bufferInfo.size, AudioTrack.WRITE_BLOCKING);
+        audioTrack.write(buffer, bufferInfo.size, AudioTrack.WRITE_NON_BLOCKING);
         decodec.releaseOutputBuffer(outIndex, false);
       } catch (IllegalStateException ignored) {
       }
