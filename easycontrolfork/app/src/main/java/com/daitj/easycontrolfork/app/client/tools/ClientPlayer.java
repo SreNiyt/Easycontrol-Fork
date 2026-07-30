@@ -19,8 +19,14 @@ public class ClientPlayer {
   private final ClientStream clientStream;
   private final Thread mainStreamInThread = new Thread(this::mainStreamIn);
   private final Thread videoStreamInThread = new Thread(this::videoStreamIn);
-  private Handler playHandler = null;
-  private final HandlerThread playHandlerThread = new HandlerThread("easycontrol_play", Thread.MAX_PRIORITY);
+  private Handler audioHandler = null;
+  private Handler videoHandler = null;
+
+  private final HandlerThread audioHandlerThread =
+      new HandlerThread("easycontrol_audio", Thread.MAX_PRIORITY);
+
+  private final HandlerThread videoHandlerThread =
+      new HandlerThread("easycontrol_video", Thread.MAX_PRIORITY);
   private static final int AUDIO_EVENT = 1;
   private static final int CLIPBOARD_EVENT = 2;
   private static final int CHANGE_SIZE_EVENT = 3;
@@ -30,8 +36,11 @@ public class ClientPlayer {
     this.clientStream = clientStream;
     if (clientController == null) return;
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      playHandlerThread.start();
-      playHandler = new Handler(playHandlerThread.getLooper());
+        audioHandlerThread.start();
+	videoHandlerThread.start();
+
+	audioHandler = new Handler(audioHandlerThread.getLooper());
+	videoHandler = new Handler(videoHandlerThread.getLooper());
     }
     mainStreamInThread.start();
     videoStreamInThread.start();
@@ -48,7 +57,7 @@ public class ClientPlayer {
           case AUDIO_EVENT:
             ByteBuffer audioFrame = clientStream.readFrameFromMain();
             if (audioDecode != null) audioDecode.decodeIn(audioFrame);
-            else audioDecode = new AudioDecode(useOpus, audioFrame, playHandler);
+            else audioDecode = new AudioDecode(useOpus, audioFrame, audioHandler);
             break;
           case CLIPBOARD_EVENT:
             clientController.handleAction("setClipBoard", clientStream.readByteArrayFromMain(clientStream.readIntFromMain()), 0);
@@ -74,7 +83,7 @@ public class ClientPlayer {
       Surface surface = new Surface(clientController.getTextureView().getSurfaceTexture());
       ByteBuffer csd0 = clientStream.readFrameFromVideo();
       ByteBuffer csd1 = useH265 ? null : clientStream.readFrameFromVideo();
-      videoDecode = new VideoDecode(videoSize, surface, csd0, csd1, playHandler);
+      videoDecode = new VideoDecode(videoSize, surface, csd0, csd1, videoHandler);
       while (!Thread.interrupted()) videoDecode.decodeIn(clientStream.readFrameFromVideo());
     } catch (Exception ignored) {
     } finally {
@@ -87,6 +96,7 @@ public class ClientPlayer {
     isClose = true;
     mainStreamInThread.interrupt();
     videoStreamInThread.interrupt();
-    playHandlerThread.interrupt();
+    audioHandlerThread.interrupt();
+    videoHandlerThread.interrupt();
   }
 }
