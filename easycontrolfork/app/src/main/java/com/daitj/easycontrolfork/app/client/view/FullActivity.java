@@ -4,6 +4,10 @@ import android.app.Activity;
 import android.content.pm.ActivityInfo;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.KeyEvent;
@@ -22,7 +26,7 @@ import com.daitj.easycontrolfork.app.entity.Device;
 import com.daitj.easycontrolfork.app.helper.PublicTools;
 import com.daitj.easycontrolfork.app.helper.ViewTools;
 
-public class FullActivity extends Activity {
+public class FullActivity extends Activity implements SensorEventListener {
   private boolean isClose = false;
   private Device device;
   private ClientController clientController;
@@ -58,10 +62,13 @@ public class FullActivity extends Activity {
     // 更新textureView
     activityFullBinding.textureViewLayout.addView(clientController.getTextureView(), 0);
     activityFullBinding.textureViewLayout.post(this::updateMaxSize);
+    // 页面自动旋转
+    AppData.sensorManager.registerListener(this, AppData.sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
   }
 
   @Override
   protected void onPause() {
+    AppData.sensorManager.unregisterListener(this);
     if (isChangingConfigurations()) activityFullBinding.textureViewLayout.removeView(clientController.getTextureView());
     else if (!isClose) clientController.handleAction(device.fullToMiniOnRunning ? "changeToMini" : "changeToSmall", ByteBuffer.wrap("changeToFull".getBytes()), 0);
     super.onPause();
@@ -87,18 +94,6 @@ public class FullActivity extends Activity {
     clientController.handleAction("updateMaxSize", byteBuffer, 0);
     if (!device.customResolutionOnConnect && device.changeResolutionOnRunning) clientController.handleAction("writeByteBuffer", ControlPacket.createChangeResolutionEvent((float) width / height), 0);
   }
-
-public void updateRemoteOrientation(int width, int height) {
-  if (!autoRotate || width <= 0 || height <= 0) return;
-
-  int orientation = width > height
-      ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-      : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-
-  if (getRequestedOrientation() != orientation) {
-    setRequestedOrientation(orientation);
-  }
-}
 
   public void hide() {
     if (device == null || clientController == null) return;
@@ -163,6 +158,32 @@ public void updateRemoteOrientation(int width, int height) {
       if (isStart && toShowView) activityFullBinding.barView.setVisibility(View.VISIBLE);
       else if (!isStart && !toShowView) activityFullBinding.barView.setVisibility(View.GONE);
     }));
+  }
+
+  private int lastOrientation = -1;
+
+  @Override
+  public void onSensorChanged(SensorEvent sensorEvent) {
+    if (!autoRotate || Sensor.TYPE_ACCELEROMETER != sensorEvent.sensor.getType()) return;
+    float[] values = sensorEvent.values;
+    float x = values[0];
+    float y = values[1];
+    int newOrientation = lastOrientation;
+
+    if (x > -3 && x < 3 && y >= 4.5) newOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+    else if (y > -3 && y < 3 && x >= 4.5) newOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+    else if (y > -3 && y < 3 && x <= -4.5) newOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
+    else if (x > -3 && x < 3 && y <= -4.5) newOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT;
+
+    if (lastOrientation != newOrientation) {
+      lastOrientation = newOrientation;
+      setRequestedOrientation(newOrientation);
+    }
+  }
+
+  @Override
+  public void onAccuracyChanged(Sensor sensor, int i) {
+
   }
 
   // 设置键盘监听

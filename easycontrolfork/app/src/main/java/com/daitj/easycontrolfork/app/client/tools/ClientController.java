@@ -250,24 +250,14 @@ public class ClientController implements TextureView.SurfaceTextureListener {
     AppData.uiHandler.post(this::reCalculateTextureViewSize);
   }
 
-private void updateVideoSize(ByteBuffer byteBuffer) {
-  int width = byteBuffer.getInt();
-  int height = byteBuffer.getInt();
-
-  if (width <= 100 || height <= 100) return;
-
-  this.videoSize = new Pair<>(width, height);
-
-  updateSite(null);
-
-  AppData.uiHandler.post(() -> {
-    reCalculateTextureViewSize();
-
-    if (fullView != null) {
-      fullView.updateRemoteOrientation(width, height);
-    }
-  });
-}
+  private void updateVideoSize(ByteBuffer byteBuffer) {
+    int width = byteBuffer.getInt();
+    int height = byteBuffer.getInt();
+    if (width <= 100 || height <= 100) return;
+    this.videoSize = new Pair<>(width, height);
+    updateSite(null);
+    AppData.uiHandler.post(this::reCalculateTextureViewSize);
+  }
 
   private void updateSite(ByteBuffer byteBuffer) {
     if (smallView == null || videoSize == null || !smallView.isShow()) return;
