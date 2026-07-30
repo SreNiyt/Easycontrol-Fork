@@ -23,7 +23,9 @@ jobs:
 
       - name: Build and Locate
         run: |
-          ./gradlew clean assembleRelease
+          mkdir -p app/src/main/res/raw
+          ./gradlew :server:copyRelease
+          ./gradlew :app:assembleRelease
           echo "Listing all files in app/build/outputs:"
           find app/build/outputs -name "*.apk"
         working-directory: easycontrolfork
