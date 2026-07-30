@@ -67,9 +67,14 @@ public class ClientStream {
 
   // 启动Server
   private void startServer(Device device) throws Exception {
-    if (BuildConfig.ENABLE_DEBUG_FEATURE || !adb.runAdbCmd("ls /data/local/tmp/easycontrolfork_*").contains(serverName)) {
-      adb.runAdbCmd("rm /data/local/tmp/easycontrolfork_* ");
-      adb.pushFile(AppData.applicationContext.getResources().openRawResource(R.raw.easycontrolfork_server), serverName, null);
+  adb.runAdbCmd("rm -f /data/local/tmp/easycontrolfork_*");
+
+  adb.pushFile(
+      AppData.applicationContext.getResources()
+          .openRawResource(R.raw.easycontrolfork_server),
+      serverName,
+      null
+  );
     }
     shell = adb.getShell();
     shell.write(ByteBuffer.wrap(("app_process -Djava.class.path=" + serverName + " / com.daitj.easycontrolfork.server.Server"
