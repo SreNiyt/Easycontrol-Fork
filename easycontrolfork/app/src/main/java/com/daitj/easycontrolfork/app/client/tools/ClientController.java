@@ -6,6 +6,7 @@ import android.annotation.SuppressLint;
 import android.content.ClipData;
 import android.content.Intent;
 import android.graphics.SurfaceTexture;
+import android.view.Surface;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -278,26 +279,61 @@ public class ClientController implements TextureView.SurfaceTextureListener {
     AppData.uiHandler.post(() -> smallView.updateView(x, y));
   }
 
-  // 重新计算TextureView大小
-  private void reCalculateTextureViewSize() {
+private void reCalculateTextureViewSize() {
     if (maxSize == null || videoSize == null) return;
-    Pair<Integer, Integer> maxSize = this.maxSize;
-    if (smallView != null && smallView.isShow()) {
-      if (videoSize.first < videoSize.second) maxSize = new Pair<>(this.maxSize.first, this.maxSize.first);
-      else maxSize = new Pair<>(this.maxSize.second, this.maxSize.second);
+
+    Pair<Integer, Integer> calcMaxSize = this.maxSize;
+
+    // Detect landscape video displayed while the available screen area is portrait.
+    boolean isVirtualLandscape = (videoSize.first > videoSize.second)
+            && (this.maxSize.second > this.maxSize.first)
+            && (smallView == null || !smallView.isShow());
+
+    if (isVirtualLandscape) {
+        // Treat the available area as if the device were already rotated.
+        calcMaxSize = new Pair<>(this.maxSize.second, this.maxSize.first);
+    } else if (smallView != null && smallView.isShow()) {
+        if (videoSize.first < videoSize.second) {
+            calcMaxSize = new Pair<>(this.maxSize.first, this.maxSize.first);
+        } else {
+            calcMaxSize = new Pair<>(this.maxSize.second, this.maxSize.second);
+        }
     }
-    // 根据原画面大小videoSize计算在maxSize空间内的最大缩放大小
-    int tmp1 = videoSize.second * maxSize.first / videoSize.first;
-    // 横向最大不会超出
-    if (maxSize.second > tmp1) surfaceSize = new Pair<>(maxSize.first, tmp1);
-      // 竖向最大不会超出
-    else surfaceSize = new Pair<>(videoSize.first * maxSize.second / videoSize.second, maxSize.second);
-    // 更新大小
+
+    // Calculate the largest size that preserves the video's aspect ratio.
+    int tmp1 = videoSize.second * calcMaxSize.first / videoSize.first;
+
+    if (calcMaxSize.second > tmp1) {
+        surfaceSize = new Pair<>(calcMaxSize.first, tmp1);
+    } else {
+        surfaceSize = new Pair<>(
+                videoSize.first * calcMaxSize.second / videoSize.second,
+                calcMaxSize.second
+        );
+    }
+
+    // Update TextureView size.
     ViewGroup.LayoutParams layoutParams = textureView.getLayoutParams();
     layoutParams.width = surfaceSize.first;
     layoutParams.height = surfaceSize.second;
     textureView.setLayoutParams(layoutParams);
-  }
+
+    // Rotate virtual landscape according to the physical display orientation.
+    if (isVirtualLandscape) {
+        Display display = textureView.getDisplay();
+
+        if (display != null && display.getRotation() == Surface.ROTATION_270) {
+            // Reverse landscape
+            textureView.setRotation(-90f);
+        } else {
+            // Normal landscape
+            textureView.setRotation(90f);
+        }
+    } else {
+        // Reset rotation for portrait and normal layouts.
+        textureView.setRotation(0f);
+    }
+}
 
   // 检查画面是否超出
   private void checkSizeAndSite() {
