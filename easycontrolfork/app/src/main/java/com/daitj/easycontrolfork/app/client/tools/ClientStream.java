@@ -101,16 +101,24 @@ public class ClientStream {
       for (int i = 0; i < reTry; i++) {
         try {
           if (!mainConn) {
-            mainSocket = new Socket();
-            mainSocket.connect(inetSocketAddress, timeoutDelay / 2);
-            mainConn = true;
-          }
-          videoSocket = new Socket();
-          videoSocket.connect(inetSocketAddress, timeoutDelay / 2);
-          mainOutputStream = mainSocket.getOutputStream();
-          mainDataInputStream = new DataInputStream(mainSocket.getInputStream());
-          videoDataInputStream = new DataInputStream(videoSocket.getInputStream());
-          connectDirect = true;
+	    mainSocket = new Socket();
+
+	    mainSocket.setTcpNoDelay(true);
+	    mainSocket.setReceiveBufferSize(1024 * 32);
+	    mainSocket.setSendBufferSize(1024 * 32);
+
+	    mainSocket.connect(inetSocketAddress, timeoutDelay / 2);
+	    mainConn = true;
+	}
+
+	videoSocket = new Socket();
+
+	videoSocket.setTcpNoDelay(true);
+	videoSocket.setReceiveBufferSize(1024 * 64);
+	videoSocket.setSendBufferSize(1024 * 64);
+
+	videoSocket.connect(inetSocketAddress, timeoutDelay / 2);
+
           return;
         } catch (Exception ignored) {
           if (mainSocket != null) mainSocket.close();
