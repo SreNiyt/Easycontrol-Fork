@@ -250,14 +250,23 @@ public class ClientController implements TextureView.SurfaceTextureListener {
     AppData.uiHandler.post(this::reCalculateTextureViewSize);
   }
 
-  private void updateVideoSize(ByteBuffer byteBuffer) {
+private void updateVideoSize(ByteBuffer byteBuffer) {
     int width = byteBuffer.getInt();
     int height = byteBuffer.getInt();
+
     if (width <= 100 || height <= 100) return;
+
     this.videoSize = new Pair<>(width, height);
+
+    PublicTools.logToast(
+        "Video",
+        "Remote: " + width + "x" + height,
+        false
+    );
+
     updateSite(null);
     AppData.uiHandler.post(this::reCalculateTextureViewSize);
-  }
+}
 
   private void updateSite(ByteBuffer byteBuffer) {
     if (smallView == null || videoSize == null || !smallView.isShow()) return;
