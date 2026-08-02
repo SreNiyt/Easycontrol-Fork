@@ -202,13 +202,33 @@ public final class Server {
     }
   }
 
-  public synchronized static void writeMain(ByteBuffer byteBuffer) throws IOException {
-    mainOutputStream.write(byteBuffer.array());
-  }
+public synchronized static void writeMain(ByteBuffer byteBuffer) throws IOException {
+    if (byteBuffer.hasArray()) {
+        mainOutputStream.write(
+            byteBuffer.array(),
+            byteBuffer.arrayOffset() + byteBuffer.position(),
+            byteBuffer.remaining()
+        );
+    } else {
+        byte[] buffer = new byte[byteBuffer.remaining()];
+        byteBuffer.get(buffer);
+        mainOutputStream.write(buffer);
+    }
+}
 
-  public static void writeVideo(ByteBuffer byteBuffer) throws IOException {
-    videoOutputStream.write(byteBuffer.array());
-  }
+public static void writeVideo(ByteBuffer byteBuffer) throws IOException {
+    if (byteBuffer.hasArray()) {
+        videoOutputStream.write(
+            byteBuffer.array(),
+            byteBuffer.arrayOffset() + byteBuffer.position(),
+            byteBuffer.remaining()
+        );
+    } else {
+        byte[] buffer = new byte[byteBuffer.remaining()];
+        byteBuffer.get(buffer);
+        videoOutputStream.write(buffer);
+    }
+}
 
   public static void errorClose(Exception e) {
     e.printStackTrace();
