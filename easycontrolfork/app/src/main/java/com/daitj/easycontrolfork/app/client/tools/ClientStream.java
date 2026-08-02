@@ -192,6 +192,20 @@ public class ClientStream {
     else mainBufferStream.write(byteBuffer);
   }
 
+  public void pauseVideo() throws Exception {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(1);
+    byteBuffer.put((byte) 10);
+    byteBuffer.flip();
+    writeToMain(byteBuffer);
+  }
+
+  public void resumeVideo() throws Exception {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(1);
+    byteBuffer.put((byte) 11);
+    byteBuffer.flip();
+    writeToMain(byteBuffer);
+  }
+
   public void close() {
     if (isClose) return;
     isClose = true;

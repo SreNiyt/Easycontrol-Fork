@@ -173,28 +173,52 @@ public class ClientController implements TextureView.SurfaceTextureListener {
     AppData.mainActivity.startActivity(intent);
   }
 
-  private synchronized void changeToSmall() {
-    hide();
-    if (noFloatPermission()) {
-      PublicTools.logToast("controller", AppData.applicationContext.getString(R.string.toast_float_per), true);
-      changeToFull();
-    } else {
-      if (smallView == null) smallView = new SmallView(device.uuid);
-      AppData.uiHandler.post(smallView::show);
-      updateSite(null);
-    }
-  }
+private synchronized void changeToSmall() {
+  hide();
 
-  private synchronized void changeToMini(ByteBuffer byteBuffer) {
-    hide();
-    if (noFloatPermission()) {
-      PublicTools.logToast("controller", AppData.applicationContext.getString(R.string.toast_float_per), true);
-      changeToFull();
-    } else {
-      if (miniView == null) miniView = new MiniView(device.uuid);
-      AppData.uiHandler.post(() -> miniView.show(byteBuffer));
+  if (noFloatPermission()) {
+    PublicTools.logToast(
+        "controller",
+        AppData.applicationContext.getString(R.string.toast_float_per),
+        true
+    );
+    changeToFull();
+  } else {
+    if (smallView == null) smallView = new SmallView(device.uuid);
+
+    AppData.uiHandler.post(smallView::show);
+    updateSite(null);
+
+    try {
+      clientStream.resumeVideo();
+    } catch (Exception e) {
+      e.printStackTrace();
     }
   }
+}
+
+private synchronized void changeToMini(ByteBuffer byteBuffer) {
+  hide();
+
+  if (noFloatPermission()) {
+    PublicTools.logToast(
+        "controller",
+        AppData.applicationContext.getString(R.string.toast_float_per),
+        true
+    );
+    changeToFull();
+  } else {
+    if (miniView == null) miniView = new MiniView(device.uuid);
+
+    AppData.uiHandler.post(() -> miniView.show(byteBuffer));
+
+    try {
+      clientStream.pauseVideo();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+}
 
   // 检查悬浮窗权限
   private boolean noFloatPermission() {
