@@ -53,15 +53,38 @@ public class VideoDecode {
 
   private final LinkedBlockingQueue<Integer> intputBufferQueue = new LinkedBlockingQueue<>();
 
-  public void decodeIn(ByteBuffer data) throws InterruptedException {
+public void decodeIn(ByteBuffer data) throws InterruptedException {
     try {
-      long pts = data.getLong();
-      int inIndex = intputBufferQueue.take();
-      decodec.getInputBuffer(inIndex).put(data);
-      decodec.queueInputBuffer(inIndex, 0, data.capacity() - 8, pts, 0);
+        long pts = data.getLong();
+        int size = data.remaining();
+
+        Integer inIndex = intputBufferQueue.poll(
+            100,
+            java.util.concurrent.TimeUnit.MILLISECONDS
+        );
+
+        if (inIndex == null) {
+            return;
+        }
+
+        ByteBuffer inputBuffer = decodec.getInputBuffer(inIndex);
+        if (inputBuffer == null) {
+            return;
+        }
+
+        inputBuffer.clear();
+        inputBuffer.put(data);
+
+        decodec.queueInputBuffer(
+            inIndex,
+            0,
+            size,
+            pts,
+            0
+        );
     } catch (IllegalStateException ignored) {
     }
-  }
+}
 
   // 创建Codec
   private void setVideoDecodec(Pair<Integer, Integer> videoSize, Surface surface, ByteBuffer csd0, ByteBuffer csd1, Handler playHandler) throws IOException, InterruptedException {
