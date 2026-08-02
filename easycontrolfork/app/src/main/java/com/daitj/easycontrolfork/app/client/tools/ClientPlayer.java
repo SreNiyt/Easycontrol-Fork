@@ -7,6 +7,7 @@ import android.util.Pair;
 import android.view.Surface;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.daitj.easycontrolfork.app.client.Client;
 import com.daitj.easycontrolfork.app.client.decode.AudioDecode;
@@ -30,6 +31,7 @@ public class ClientPlayer {
   private static final int AUDIO_EVENT = 1;
   private static final int CLIPBOARD_EVENT = 2;
   private static final int CHANGE_SIZE_EVENT = 3;
+  private final AtomicReference<ByteBuffer> latestVideoFrame = new AtomicReference<>();
 
   public ClientPlayer(String uuid, ClientStream clientStream) {
     clientController = Client.getClientController(uuid);
@@ -75,21 +77,77 @@ public class ClientPlayer {
     }
   }
 
-  private void videoStreamIn() {
+private void videoStreamIn() {
     VideoDecode videoDecode = null;
+
     try {
-      boolean useH265 = clientStream.readByteFromVideo() == 1;
-      Pair<Integer, Integer> videoSize = new Pair<>(clientStream.readIntFromVideo(), clientStream.readIntFromVideo());
-      Surface surface = new Surface(clientController.getTextureView().getSurfaceTexture());
-      ByteBuffer csd0 = clientStream.readFrameFromVideo();
-      ByteBuffer csd1 = useH265 ? null : clientStream.readFrameFromVideo();
-      videoDecode = new VideoDecode(videoSize, surface, csd0, csd1, videoHandler);
-      while (!Thread.interrupted()) videoDecode.decodeIn(clientStream.readFrameFromVideo());
+        boolean useH265 = clientStream.readByteFromVideo() == 1;
+
+        Pair<Integer, Integer> videoSize =
+            new Pair<>(
+                clientStream.readIntFromVideo(),
+                clientStream.readIntFromVideo()
+            );
+
+        Surface surface =
+            new Surface(
+                clientController.getTextureView()
+                    .getSurfaceTexture()
+            );
+
+        ByteBuffer csd0 =
+            clientStream.readFrameFromVideo();
+
+        ByteBuffer csd1 =
+            useH265
+                ? null
+                : clientStream.readFrameFromVideo();
+
+        videoDecode =
+            new VideoDecode(
+                videoSize,
+                surface,
+                csd0,
+                csd1,
+                videoHandler
+            );
+
+        VideoDecode finalVideoDecode = videoDecode;
+
+        Thread videoNetworkThread = new Thread(() -> {
+            try {
+                while (!Thread.interrupted()) {
+                    ByteBuffer frame =
+                        clientStream.readFrameFromVideo();
+
+                    latestVideoFrame.set(frame);
+                }
+            } catch (Exception ignored) {
+            }
+        }, "easycontrol_video_network");
+
+        videoNetworkThread.start();
+
+        while (!Thread.interrupted()) {
+            ByteBuffer frame =
+                latestVideoFrame.getAndSet(null);
+
+            if (frame != null) {
+                finalVideoDecode.decodeIn(frame);
+            } else {
+                Thread.sleep(1);
+            }
+        }
+
+        videoNetworkThread.interrupt();
+
     } catch (Exception ignored) {
     } finally {
-      if (videoDecode != null) videoDecode.release();
+        if (videoDecode != null) {
+            videoDecode.release();
+        }
     }
-  }
+}
 
   public void close() {
     if (isClose) return;
