@@ -100,11 +100,14 @@ public void decodeIn(ByteBuffer data) throws InterruptedException {
     }
     MediaFormat decodecFormat = MediaFormat.createVideoFormat(codecMime, videoSize.first, videoSize.second);
     // 获取视频标识头
-    csd0.position(8);
-    decodecFormat.setByteBuffer("csd-0", csd0);
+    ByteBuffer csd0Format = csd0.duplicate();
+    csd0Format.position(8);
+    decodecFormat.setByteBuffer("csd-0", csd0Format);
+
     if (!useH265) {
-      csd1.position(8);
-      decodecFormat.setByteBuffer("csd-1", csd1);
+        ByteBuffer csd1Format = csd1.duplicate();
+        csd1Format.position(8);
+        decodecFormat.setByteBuffer("csd-1", csd1Format);
     }
     // 异步解码
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && playHandler != null) {
