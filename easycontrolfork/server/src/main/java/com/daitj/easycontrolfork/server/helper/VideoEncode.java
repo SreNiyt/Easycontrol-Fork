@@ -92,18 +92,31 @@ public final class VideoEncode {
 
   private static final MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
 
-  public static void encodeOut() throws IOException {
-    try {
-      // 找到已完成的输出缓冲区
-      int outIndex;
-      do outIndex = encedec.dequeueOutputBuffer(bufferInfo, -1); while (outIndex < 0);
-      ByteBuffer buffer = encedec.getOutputBuffer(outIndex);
-      if (buffer == null) return;
-      ControlPacket.sendVideoEvent(bufferInfo.presentationTimeUs, buffer);
+public static void encodeOut() throws IOException {
+  try {
+    int outIndex;
+    do outIndex = encedec.dequeueOutputBuffer(bufferInfo, -1);
+    while (outIndex < 0);
+
+    ByteBuffer buffer = encedec.getOutputBuffer(outIndex);
+
+    if (buffer == null) {
       encedec.releaseOutputBuffer(outIndex, false);
-    } catch (IllegalStateException ignored) {
+      return;
     }
+
+    ByteBuffer frame = ByteBuffer.allocate(buffer.remaining());
+    frame.put(buffer);
+    frame.flip();
+
+    long pts = bufferInfo.presentationTimeUs;
+
+    encedec.releaseOutputBuffer(outIndex, false);
+    ControlPacket.sendVideoEvent(pts, frame);
+
+  } catch (IllegalStateException ignored) {
   }
+}
 
   public static void release() {
     try {
