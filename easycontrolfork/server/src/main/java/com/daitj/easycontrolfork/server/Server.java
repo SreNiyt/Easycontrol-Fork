@@ -10,7 +10,6 @@ import android.os.IInterface;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.DataOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.ServerSocket;
@@ -34,7 +33,7 @@ public final class Server {
   private static Socket mainSocket;
   private static Socket videoSocket;
   private static OutputStream mainOutputStream;
-  private static DataOutputStream videoOutputStream;
+  private static OutputStream videoOutputStream;
   public static DataInputStream mainInputStream;
 
   private static final Object object = new Object();
@@ -125,7 +124,7 @@ public final class Server {
       mainSocket = serverSocket.accept();
       videoSocket = serverSocket.accept();
       mainOutputStream = mainSocket.getOutputStream();
-      videoOutputStream = new DataOutputStream(videoSocket.getOutputStream());
+      videoOutputStream = videoSocket.getOutputStream();
       mainInputStream = new DataInputStream(mainSocket.getInputStream());
     }
   }
@@ -233,25 +232,6 @@ public static void writeVideo(ByteBuffer byteBuffer) throws IOException {
     } else {
         byte[] buffer = new byte[byteBuffer.remaining()];
         byteBuffer.get(buffer);
-        videoOutputStream.write(buffer);
-    }
-}
-
-public static void writeVideoFrame(long pts, ByteBuffer data) throws IOException {
-    int size = data.remaining() + 8;
-
-    videoOutputStream.writeInt(size);
-    videoOutputStream.writeLong(pts);
-
-    if (data.hasArray()) {
-        videoOutputStream.write(
-            data.array(),
-            data.arrayOffset() + data.position(),
-            data.remaining()
-        );
-    } else {
-        byte[] buffer = new byte[data.remaining()];
-        data.get(buffer);
         videoOutputStream.write(buffer);
     }
 }
