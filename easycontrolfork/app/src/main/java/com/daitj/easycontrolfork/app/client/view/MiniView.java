@@ -49,6 +49,58 @@ public class MiniView {
     setButtonListener();
   }
 
+private void animateMiniViewTo(int targetX, int targetY) {
+  final int startX = miniViewParams.x;
+  final int startY = miniViewParams.y;
+
+  final long startTime = System.currentTimeMillis();
+  final long duration = 600;
+
+  Handler handler = new Handler(Looper.getMainLooper());
+
+  Runnable animation = new Runnable() {
+    @Override
+    public void run() {
+      long elapsed = System.currentTimeMillis() - startTime;
+
+      float progress = Math.min(1f, (float) elapsed / duration);
+
+      // Smooth ease-out
+      float eased = 1f - (1f - progress) * (1f - progress);
+
+      miniViewParams.x = startX
+          + (int) ((targetX - startX) * eased);
+
+      miniViewParams.y = startY
+          + (int) ((targetY - startY) * eased);
+
+      device.miniY = miniViewParams.y;
+
+      AppData.windowManager.updateViewLayout(
+          miniView.getRoot(),
+          miniViewParams
+      );
+
+      if (progress < 1f) {
+        handler.postDelayed(this, 16);
+      } else {
+        miniViewParams.x = targetX;
+        miniViewParams.y = targetY;
+
+        device.miniY = targetY;
+
+        AppData.windowManager.updateViewLayout(
+            miniView.getRoot(),
+            miniViewParams
+        );
+      }
+    }
+  };
+
+  handler.post(animation);
+}
+
+
   public void show(ByteBuffer byteBuffer) {
     if (device == null || clientController == null) return;
     miniViewParams.y = device.miniY;
@@ -92,7 +144,7 @@ public class MiniView {
   // 设置监听控制
 @SuppressLint("ClickableViewAccessibility")
 private void setBarListener() {
-  final int HOLD_TIME = 500;
+  final int HOLD_TIME = 300;
 
   Handler handler = new Handler(Looper.getMainLooper());
 
@@ -165,18 +217,15 @@ private void setBarListener() {
           int viewCenter = miniViewParams.x
               + (viewWidth / 2);
 
-          if (viewCenter < screenWidth / 2) {
-            miniViewParams.x = 0;
-          } else {
-            miniViewParams.x = screenWidth - viewWidth;
-          }
+   	  int targetX;
 
-          device.miniY = miniViewParams.y;
+       	  if (viewCenter < screenWidth / 2) {
+	    targetX = 0;
+	  } else {
+	    targetX = screenWidth - viewWidth;
+	  }
 
-          AppData.windowManager.updateViewLayout(
-              miniView.getRoot(),
-              miniViewParams
-          );
+	  animateMiniViewTo(targetX, miniViewParams.y);
 
         } else {
           clientController.handleAction(
