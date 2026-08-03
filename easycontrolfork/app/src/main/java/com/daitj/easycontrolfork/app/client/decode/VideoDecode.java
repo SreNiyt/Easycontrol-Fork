@@ -25,7 +25,7 @@ public class VideoDecode {
     @Override
     public void onOutputBufferAvailable(@NonNull MediaCodec mediaCodec, int outIndex, @NonNull MediaCodec.BufferInfo bufferInfo) {
       try {
-        mediaCodec.releaseOutputBuffer(outIndex, bufferInfo.presentationTimeUs);
+        mediaCodec.releaseOutputBuffer(outIndex, true);
       } catch (IllegalStateException ignored) {
       }
     }
