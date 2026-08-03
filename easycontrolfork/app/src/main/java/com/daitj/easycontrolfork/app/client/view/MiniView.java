@@ -3,6 +3,8 @@ package com.daitj.easycontrolfork.app.client.view;
 import android.annotation.SuppressLint;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -88,35 +90,119 @@ public class MiniView {
   }
 
   // 设置监听控制
-  @SuppressLint("ClickableViewAccessibility")
-  private void setBarListener() {
-    AtomicInteger yy = new AtomicInteger();
-    AtomicInteger oldYy = new AtomicInteger();
-    miniView.getRoot().setOnTouchListener((v, event) -> {
-      switch (event.getActionMasked()) {
-        case MotionEvent.ACTION_OUTSIDE:
-          lastTouchTIme = System.currentTimeMillis();
-          break;
-        case MotionEvent.ACTION_DOWN: {
-          yy.set((int) event.getRawY());
-          oldYy.set(miniViewParams.y);
-          break;
-        }
-        case MotionEvent.ACTION_MOVE: {
-          miniViewParams.y = oldYy.get() + (int) event.getRawY() - yy.get();
-          device.miniY = miniViewParams.y;
-          AppData.windowManager.updateViewLayout(miniView.getRoot(), miniViewParams);
-          break;
-        }
+@SuppressLint("ClickableViewAccessibility")
+private void setBarListener() {
+  final int HOLD_TIME = 500;
+
+  Handler handler = new Handler(Looper.getMainLooper());
+
+  AtomicInteger xx = new AtomicInteger();
+  AtomicInteger yy = new AtomicInteger();
+  AtomicInteger oldXx = new AtomicInteger();
+  AtomicInteger oldYy = new AtomicInteger();
+
+  final boolean[] isDragging = {false};
+
+  Runnable startDragging = () -> {
+    isDragging[0] = true;
+  };
+
+  miniView.getRoot().setOnTouchListener((v, event) -> {
+    switch (event.getActionMasked()) {
+
+      case MotionEvent.ACTION_OUTSIDE:
+        lastTouchTIme = System.currentTimeMillis();
+        break;
+
+      case MotionEvent.ACTION_DOWN: {
+        xx.set((int) event.getRawX());
+        yy.set((int) event.getRawY());
+
+        oldXx.set(miniViewParams.x);
+        oldYy.set(miniViewParams.y);
+
+        isDragging[0] = false;
+
+        handler.postDelayed(startDragging, HOLD_TIME);
+
+        lastTouchTIme = System.currentTimeMillis();
+        return true;
       }
-      return true;
-    });
-  }
+
+      case MotionEvent.ACTION_MOVE: {
+        if (isDragging[0]) {
+          miniViewParams.x = oldXx.get()
+              + (int) event.getRawX() - xx.get();
+
+          miniViewParams.y = oldYy.get()
+              + (int) event.getRawY() - yy.get();
+
+          device.miniY = miniViewParams.y;
+
+          AppData.windowManager.updateViewLayout(
+              miniView.getRoot(),
+              miniViewParams
+          );
+
+          lastTouchTIme = System.currentTimeMillis();
+        }
+
+        return true;
+      }
+
+      case MotionEvent.ACTION_UP: {
+        handler.removeCallbacks(startDragging);
+
+        if (isDragging[0]) {
+          int screenWidth = v.getResources()
+              .getDisplayMetrics().widthPixels;
+
+          int viewWidth = v.getWidth();
+
+          int viewCenter = miniViewParams.x
+              + (viewWidth / 2);
+
+          if (viewCenter < screenWidth / 2) {
+            miniViewParams.x = 0;
+          } else {
+            miniViewParams.x = screenWidth - viewWidth;
+          }
+
+          device.miniY = miniViewParams.y;
+
+          AppData.windowManager.updateViewLayout(
+              miniView.getRoot(),
+              miniViewParams
+          );
+
+        } else {
+          clientController.handleAction(
+              "changeToSmall",
+              null,
+              0
+          );
+        }
+
+        isDragging[0] = false;
+        lastTouchTIme = System.currentTimeMillis();
+
+        return true;
+      }
+
+      case MotionEvent.ACTION_CANCEL: {
+        handler.removeCallbacks(startDragging);
+        isDragging[0] = false;
+        return true;
+      }
+    }
+
+    return true;
+  });
+}
 
   // 设置按钮监听
   private void setButtonListener() {
     miniView.buttonSmall.setOnClickListener(v -> clientController.handleAction( "changeToSmall", null, 0));
-    miniView.buttonFull.setOnClickListener(v -> clientController.handleAction( "changeToFull", null, 0));
   }
 
 }

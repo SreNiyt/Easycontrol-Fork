@@ -31,33 +31,8 @@
                 android:src="@drawable/window_restore"
                 android:tint="@color/onCardBackground" />
 
-            <FrameLayout
-                android:layout_width="15.0dip"
-                android:layout_height="8.0dip"
-                android:layout_gravity="center">
-
-                <View
-                    android:layout_width="15.0dip"
-                    android:layout_height="2.0dip"
-                    android:layout_gravity="center"
-                    android:background="@drawable/background_cron"
-                    android:backgroundTint="@color/clientBar"
-                    android:focusable="false" />
-
-            </FrameLayout>
-
-            <ImageView
-                android:id="@+id/button_full"
-                android:layout_width="34.0dip"
-                android:layout_height="30.0dip"
-                android:paddingStart="8.0dip"
-                android:paddingTop="4.0dip"
-                android:paddingEnd="8.0dip"
-                android:paddingBottom="7.0dip"
-                android:src="@drawable/expand"
-                android:tint="@color/onCardBackground"
-                android:visibility="gone" />
-
         </LinearLayout>
+
     </FrameLayout>
+
 </FrameLayout>
