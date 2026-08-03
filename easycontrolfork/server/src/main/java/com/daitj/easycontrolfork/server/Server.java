@@ -123,7 +123,9 @@ public final class Server {
   private static void connectClient() throws IOException {
     try (ServerSocket serverSocket = new ServerSocket(Options.serverPort)) {
       mainSocket = serverSocket.accept();
+      mainSocket.setTcpNoDelay(true);
       videoSocket = serverSocket.accept();
+      videoSocket.setTcpNoDelay(true);
       mainOutputStream = mainSocket.getOutputStream();
       videoOutputStream = new DataOutputStream(videoSocket.getOutputStream());
       mainInputStream = new DataInputStream(mainSocket.getInputStream());
