@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.MotionEvent;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -128,13 +129,60 @@ public class FullActivity extends Activity {
       clientController.handleAction(light ? "buttonLight" : "buttonLightOff", null, 0);
       changeBarView();
     });
-    activityFullBinding.buttonMore.setOnClickListener(v -> changeBarView());
+    setupDraggableMoreButton();
     activityFullBinding.buttonAutoRotate.setOnClickListener(v -> {
       autoRotate = !autoRotate;
       AppData.setting.setAutoRotate(autoRotate);
       activityFullBinding.buttonAutoRotate.setImageResource(autoRotate ? R.drawable.un_auto : R.drawable.auto);
     });
   }
+
+private void setupDraggableMoreButton() {
+  View button = activityFullBinding.buttonMore;
+
+  final float[] downX = {0};
+  final float[] downY = {0};
+  final float[] startX = {0};
+  final float[] startY = {0};
+  final boolean[] isDragging = {false};
+
+  button.setOnTouchListener((v, event) -> {
+    switch (event.getActionMasked()) {
+      case MotionEvent.ACTION_DOWN:
+        downX[0] = event.getRawX();
+        downY[0] = event.getRawY();
+        startX[0] = v.getTranslationX();
+        startY[0] = v.getTranslationY();
+        isDragging[0] = false;
+        return true;
+
+      case MotionEvent.ACTION_MOVE:
+        float dx = event.getRawX() - downX[0];
+        float dy = event.getRawY() - downY[0];
+
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+          isDragging[0] = true;
+        }
+
+        if (isDragging[0]) {
+          v.setTranslationX(startX[0] + dx);
+          v.setTranslationY(startY[0] + dy);
+        }
+        return true;
+
+      case MotionEvent.ACTION_UP:
+        if (!isDragging[0]) {
+          changeBarView();
+        }
+        return true;
+
+      case MotionEvent.ACTION_CANCEL:
+        return true;
+    }
+
+    return false;
+  });
+}
 
   // 导航栏隐藏
   private void setNavBarHide(boolean isShow) {
