@@ -81,64 +81,57 @@ private void animateMiniViewTo(int targetX, int targetY) {
   animator.start();
 }
 
-private void flingMiniView(float velocityX) {
+private void flingMiniView(float velocityX, float velocityY) {
   int screenWidth = AppData.applicationContext
       .getResources()
       .getDisplayMetrics()
       .widthPixels;
 
-  int viewWidth = miniView.getRoot().getWidth();
+  int screenHeight = AppData.applicationContext
+      .getResources()
+      .getDisplayMetrics()
+      .heightPixels;
 
-  int currentX = miniViewParams.x;
+  int viewWidth = miniView.getRoot().getWidth();
+  int viewHeight = miniView.getRoot().getHeight();
+
+  final float[] vx = {velocityX};
+  final float[] vy = {velocityY};
 
   final float friction = 0.92f;
 
-  float flingDistance = velocityX * 0.35f;
-
-  int targetX;
-
-  if (velocityX < 0) {
-    targetX = 0;
-  } else {
-    targetX = screenWidth - viewWidth;
-  }
-
-  if (Math.abs(velocityX) < 100) {
-    targetX = currentX < screenWidth / 2
-        ? 0
-        : screenWidth - viewWidth;
-
-    animateMiniViewTo(
-        targetX,
-        miniViewParams.y
-    );
-
-    return;
-  }
-
-  final float[] currentVelocity = {velocityX};
-
   ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
 
-  animator.setDuration(1500);
+  animator.setDuration(2000);
 
   animator.addUpdateListener(animation -> {
-    float progress = (float) animation.getAnimatedValue();
 
-    currentVelocity[0] *= friction;
+    vx[0] *= friction;
+    vy[0] *= friction;
 
-    miniViewParams.x +=
-        (int) (currentVelocity[0] * 0.016f);
+    miniViewParams.x += (int) (vx[0] * 0.016f);
+    miniViewParams.y += (int) (vy[0] * 0.016f);
+
+    boolean hitEdge = false;
 
     if (miniViewParams.x <= 0) {
       miniViewParams.x = 0;
-      currentVelocity[0] = 0;
-      animation.cancel();
+      hitEdge = true;
+    }
 
-    } else if (miniViewParams.x >= screenWidth - viewWidth) {
+    else if (miniViewParams.x >= screenWidth - viewWidth) {
       miniViewParams.x = screenWidth - viewWidth;
-      currentVelocity[0] = 0;
-      animation.cancel();
+      hitEdge = true;
+    }
+
+    if (miniViewParams.y <= 0) {
+      miniViewParams.y = 0;
+      hitEdge = true;
+    }
+
+    else if (miniViewParams.y >= screenHeight - viewHeight) {
+      miniViewParams.y = screenHeight - viewHeight;
+      hitEdge = true;
     }
 
     device.miniY = miniViewParams.y;
@@ -148,15 +141,26 @@ private void flingMiniView(float velocityX) {
         miniViewParams
     );
 
-    if (Math.abs(currentVelocity[0]) < 10) {
-      animation.cancel();
+    if (hitEdge) {
+      animator.cancel();
+      return;
+    }
 
-      int finalX = miniViewParams.x < screenWidth / 2
-          ? 0
-          : screenWidth - viewWidth;
+    if (Math.abs(vx[0]) < 10
+        && Math.abs(vy[0]) < 10) {
+
+      animator.cancel();
+
+      int targetX;
+
+      if (miniViewParams.x < screenWidth / 2) {
+        targetX = 0;
+      } else {
+        targetX = screenWidth - viewWidth;
+      }
 
       animateMiniViewTo(
-          finalX,
+          targetX,
           miniViewParams.y
       );
     }
@@ -280,10 +284,13 @@ private void setBarListener() {
         velocityTracker[0].computeCurrentVelocity(1000);
 
         float velocityX = velocityTracker[0].getXVelocity();
+        float velocityY = velocityTracker[0].getYVelocity();
 
         if (isDragging[0]) {
-
-          flingMiniView(velocityX);
+	  flingMiniView(
+	      velocityX,
+	      velocityY
+	  );
 
         } else {
 
