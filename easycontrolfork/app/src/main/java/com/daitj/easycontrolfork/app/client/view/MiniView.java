@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.VelocityTracker;
 import android.animation.ValueAnimator;
 import android.view.animation.DecelerateInterpolator;
 
@@ -80,6 +81,89 @@ private void animateMiniViewTo(int targetX, int targetY) {
   animator.start();
 }
 
+private void flingMiniView(float velocityX) {
+  int screenWidth = AppData.applicationContext
+      .getResources()
+      .getDisplayMetrics()
+      .widthPixels;
+
+  int viewWidth = miniView.getRoot().getWidth();
+
+  int currentX = miniViewParams.x;
+
+  final float friction = 0.92f;
+
+  float flingDistance = velocityX * 0.35f;
+
+  int targetX;
+
+  if (velocityX < 0) {
+    targetX = 0;
+  } else {
+    targetX = screenWidth - viewWidth;
+  }
+
+  if (Math.abs(velocityX) < 100) {
+    targetX = currentX < screenWidth / 2
+        ? 0
+        : screenWidth - viewWidth;
+
+    animateMiniViewTo(
+        targetX,
+        miniViewParams.y
+    );
+
+    return;
+  }
+
+  final float[] currentVelocity = {velocityX};
+
+  ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
+
+  animator.setDuration(1500);
+
+  animator.addUpdateListener(animation -> {
+    float progress = (float) animation.getAnimatedValue();
+
+    currentVelocity[0] *= friction;
+
+    miniViewParams.x +=
+        (int) (currentVelocity[0] * 0.016f);
+
+    if (miniViewParams.x <= 0) {
+      miniViewParams.x = 0;
+      currentVelocity[0] = 0;
+      animation.cancel();
+
+    } else if (miniViewParams.x >= screenWidth - viewWidth) {
+      miniViewParams.x = screenWidth - viewWidth;
+      currentVelocity[0] = 0;
+      animation.cancel();
+    }
+
+    device.miniY = miniViewParams.y;
+
+    AppData.windowManager.updateViewLayout(
+        miniView.getRoot(),
+        miniViewParams
+    );
+
+    if (Math.abs(currentVelocity[0]) < 10) {
+      animation.cancel();
+
+      int finalX = miniViewParams.x < screenWidth / 2
+          ? 0
+          : screenWidth - viewWidth;
+
+      animateMiniViewTo(
+          finalX,
+          miniViewParams.y
+      );
+    }
+  });
+
+  animator.start();
+}
 
   public void show(ByteBuffer byteBuffer) {
     if (device == null || clientController == null) return;
@@ -128,6 +212,10 @@ private void setBarListener() {
       AppData.applicationContext
   ).getScaledTouchSlop();
 
+  final VelocityTracker[] velocityTracker = {
+      VelocityTracker.obtain()
+  };
+
   AtomicInteger xx = new AtomicInteger();
   AtomicInteger yy = new AtomicInteger();
   AtomicInteger oldXx = new AtomicInteger();
@@ -136,13 +224,13 @@ private void setBarListener() {
   final boolean[] isDragging = {false};
 
   View.OnTouchListener dragListener = (v, event) -> {
+
     switch (event.getActionMasked()) {
 
-      case MotionEvent.ACTION_OUTSIDE:
-        lastTouchTIme = System.currentTimeMillis();
-        break;
-
       case MotionEvent.ACTION_DOWN: {
+        velocityTracker[0].clear();
+        velocityTracker[0].addMovement(event);
+
         xx.set((int) event.getRawX());
         yy.set((int) event.getRawY());
 
@@ -157,6 +245,8 @@ private void setBarListener() {
       }
 
       case MotionEvent.ACTION_MOVE: {
+        velocityTracker[0].addMovement(event);
+
         int dx = (int) event.getRawX() - xx.get();
         int dy = (int) event.getRawY() - yy.get();
 
@@ -168,6 +258,7 @@ private void setBarListener() {
         }
 
         if (isDragging[0]) {
+
           miniViewParams.x = oldXx.get() + dx;
           miniViewParams.y = oldYy.get() + dy;
 
@@ -185,32 +276,17 @@ private void setBarListener() {
       }
 
       case MotionEvent.ACTION_UP: {
+        velocityTracker[0].addMovement(event);
+        velocityTracker[0].computeCurrentVelocity(1000);
+
+        float velocityX = velocityTracker[0].getXVelocity();
 
         if (isDragging[0]) {
 
-          int screenWidth = v.getResources()
-              .getDisplayMetrics()
-              .widthPixels;
-
-          int viewWidth = miniView.getRoot().getWidth();
-
-          int viewCenter = miniViewParams.x
-              + (viewWidth / 2);
-
-          int targetX;
-
-          if (viewCenter < screenWidth / 2) {
-            targetX = 0;
-          } else {
-            targetX = screenWidth - viewWidth;
-          }
-
-          animateMiniViewTo(
-              targetX,
-              miniViewParams.y
-          );
+          flingMiniView(velocityX);
 
         } else {
+
           clientController.handleAction(
               "changeToSmall",
               null,
@@ -226,7 +302,10 @@ private void setBarListener() {
       }
 
       case MotionEvent.ACTION_CANCEL: {
+        velocityTracker[0].clear();
+
         isDragging[0] = false;
+
         return true;
       }
     }
