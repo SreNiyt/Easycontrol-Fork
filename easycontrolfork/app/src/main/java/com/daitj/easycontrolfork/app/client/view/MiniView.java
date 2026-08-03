@@ -3,9 +3,8 @@ package com.daitj.easycontrolfork.app.client.view;
 import android.annotation.SuppressLint;
 import android.graphics.PixelFormat;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.Gravity;
+import android.view.ViewConfiguration;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -142,19 +141,19 @@ private void animateMiniViewTo(int targetX, int targetY) {
     }
   }
 
-  // 设置监听控制
+  // 设置监听控制.
 @SuppressLint("ClickableViewAccessibility")
 private void setBarListener() {
-  final int HOLD_TIME = 250;
-
-  Handler handler = new Handler(Looper.getMainLooper());
+  final int touchSlop = ViewConfiguration.get(
+      AppData.applicationContext
+  ).getScaledTouchSlop();
 
   AtomicInteger xx = new AtomicInteger();
   AtomicInteger yy = new AtomicInteger();
   AtomicInteger oldXx = new AtomicInteger();
   AtomicInteger oldYy = new AtomicInteger();
 
-  final boolean[] isHolding = {false};
+  final boolean[] isDragging = {false};
 
   View.OnTouchListener dragListener = (v, event) -> {
     switch (event.getActionMasked()) {
@@ -170,11 +169,7 @@ private void setBarListener() {
         oldXx.set(miniViewParams.x);
         oldYy.set(miniViewParams.y);
 
-        isHolding[0] = false;
-
-        handler.postDelayed(() -> {
-          isHolding[0] = true;
-        }, HOLD_TIME);
+        isDragging[0] = false;
 
         lastTouchTIme = System.currentTimeMillis();
 
@@ -182,12 +177,19 @@ private void setBarListener() {
       }
 
       case MotionEvent.ACTION_MOVE: {
-        if (isHolding[0]) {
-          miniViewParams.x = oldXx.get()
-              + (int) event.getRawX() - xx.get();
+        int dx = (int) event.getRawX() - xx.get();
+        int dy = (int) event.getRawY() - yy.get();
 
-          miniViewParams.y = oldYy.get()
-              + (int) event.getRawY() - yy.get();
+        if (!isDragging[0]
+            && (Math.abs(dx) > touchSlop
+            || Math.abs(dy) > touchSlop)) {
+
+          isDragging[0] = true;
+        }
+
+        if (isDragging[0]) {
+          miniViewParams.x = oldXx.get() + dx;
+          miniViewParams.y = oldYy.get() + dy;
 
           device.miniY = miniViewParams.y;
 
@@ -203,9 +205,8 @@ private void setBarListener() {
       }
 
       case MotionEvent.ACTION_UP: {
-        handler.removeCallbacksAndMessages(null);
 
-        if (isHolding[0]) {
+        if (isDragging[0]) {
 
           int screenWidth = v.getResources()
               .getDisplayMetrics()
@@ -237,7 +238,7 @@ private void setBarListener() {
           );
         }
 
-        isHolding[0] = false;
+        isDragging[0] = false;
 
         lastTouchTIme = System.currentTimeMillis();
 
@@ -245,10 +246,7 @@ private void setBarListener() {
       }
 
       case MotionEvent.ACTION_CANCEL: {
-        handler.removeCallbacksAndMessages(null);
-
-        isHolding[0] = false;
-
+        isDragging[0] = false;
         return true;
       }
     }
