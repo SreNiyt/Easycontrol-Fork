@@ -100,23 +100,18 @@ public class ClientStream {
       InetSocketAddress inetSocketAddress = new InetSocketAddress(PublicTools.getIp(device.address), device.serverPort);
       for (int i = 0; i < reTry; i++) {
         try {
-	  if (!mainConn) {
-	      mainSocket = new Socket();
-	      mainSocket.setTcpNoDelay(true);
-	      mainSocket.connect(inetSocketAddress, timeoutDelay / 2);
-	      mainConn = true;
-	  }
-
-	  videoSocket = new Socket();
-	  videoSocket.setTcpNoDelay(true);
- 	  videoSocket.connect(inetSocketAddress, timeoutDelay / 2);
-
-	  mainOutputStream = mainSocket.getOutputStream();
-	  mainDataInputStream = new DataInputStream(mainSocket.getInputStream());
-	  videoDataInputStream = new DataInputStream(videoSocket.getInputStream());
-
-	  connectDirect = true;
-	  return;
+          if (!mainConn) {
+            mainSocket = new Socket();
+            mainSocket.connect(inetSocketAddress, timeoutDelay / 2);
+            mainConn = true;
+          }
+          videoSocket = new Socket();
+          videoSocket.connect(inetSocketAddress, timeoutDelay / 2);
+          mainOutputStream = mainSocket.getOutputStream();
+          mainDataInputStream = new DataInputStream(mainSocket.getInputStream());
+          videoDataInputStream = new DataInputStream(videoSocket.getInputStream());
+          connectDirect = true;
+          return;
         } catch (Exception ignored) {
           if (mainSocket != null) mainSocket.close();
           if (videoSocket != null) videoSocket.close();
