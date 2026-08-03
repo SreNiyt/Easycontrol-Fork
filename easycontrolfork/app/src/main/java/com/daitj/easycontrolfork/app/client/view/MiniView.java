@@ -9,6 +9,8 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.animation.ValueAnimator;
+import android.view.animation.DecelerateInterpolator;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,54 +52,32 @@ public class MiniView {
   }
 
 private void animateMiniViewTo(int targetX, int targetY) {
-  final int startX = miniViewParams.x;
-  final int startY = miniViewParams.y;
+  int startX = miniViewParams.x;
+  int startY = miniViewParams.y;
 
-  final long startTime = System.currentTimeMillis();
-  final long duration = 400;
+  ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
 
-  Handler handler = new Handler(Looper.getMainLooper());
+  animator.setDuration(500);
+  animator.setInterpolator(new DecelerateInterpolator());
 
-  Runnable animation = new Runnable() {
-    @Override
-    public void run() {
-      long elapsed = System.currentTimeMillis() - startTime;
+  animator.addUpdateListener(animation -> {
+    float progress = (float) animation.getAnimatedValue();
 
-      float progress = Math.min(1f, (float) elapsed / duration);
+    miniViewParams.x = startX
+        + (int) ((targetX - startX) * progress);
 
-      // Smooth ease-out
-      float eased = 1f - (1f - progress) * (1f - progress);
+    miniViewParams.y = startY
+        + (int) ((targetY - startY) * progress);
 
-      miniViewParams.x = startX
-          + (int) ((targetX - startX) * eased);
+    device.miniY = miniViewParams.y;
 
-      miniViewParams.y = startY
-          + (int) ((targetY - startY) * eased);
+    AppData.windowManager.updateViewLayout(
+        miniView.getRoot(),
+        miniViewParams
+    );
+  });
 
-      device.miniY = miniViewParams.y;
-
-      AppData.windowManager.updateViewLayout(
-          miniView.getRoot(),
-          miniViewParams
-      );
-
-      if (progress < 1f) {
-        handler.postDelayed(this, 16);
-      } else {
-        miniViewParams.x = targetX;
-        miniViewParams.y = targetY;
-
-        device.miniY = targetY;
-
-        AppData.windowManager.updateViewLayout(
-            miniView.getRoot(),
-            miniViewParams
-        );
-      }
-    }
-  };
-
-  handler.post(animation);
+  animator.start();
 }
 
 
