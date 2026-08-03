@@ -54,7 +54,7 @@ private void animateMiniViewTo(int targetX, int targetY) {
   final int startY = miniViewParams.y;
 
   final long startTime = System.currentTimeMillis();
-  final long duration = 600;
+  final long duration = 400;
 
   Handler handler = new Handler(Looper.getMainLooper());
 
@@ -144,7 +144,7 @@ private void animateMiniViewTo(int targetX, int targetY) {
   // 设置监听控制
 @SuppressLint("ClickableViewAccessibility")
 private void setBarListener() {
-  final int HOLD_TIME = 300;
+  final int HOLD_TIME = 250;
 
   Handler handler = new Handler(Looper.getMainLooper());
 
@@ -153,15 +153,9 @@ private void setBarListener() {
   AtomicInteger oldXx = new AtomicInteger();
   AtomicInteger oldYy = new AtomicInteger();
 
-  final boolean[] isDragging = {false};
   final boolean[] isHolding = {false};
 
-  Runnable startDragging = () -> {
-    isHolding[0] = true;
-    isDragging[0] = true;
-  };
-
-  miniView.getRoot().setOnTouchListener((v, event) -> {
+  View.OnTouchListener dragListener = (v, event) -> {
     switch (event.getActionMasked()) {
 
       case MotionEvent.ACTION_OUTSIDE:
@@ -175,17 +169,19 @@ private void setBarListener() {
         oldXx.set(miniViewParams.x);
         oldYy.set(miniViewParams.y);
 
-        isDragging[0] = false;
         isHolding[0] = false;
 
-        handler.postDelayed(startDragging, HOLD_TIME);
+        handler.postDelayed(() -> {
+          isHolding[0] = true;
+        }, HOLD_TIME);
 
         lastTouchTIme = System.currentTimeMillis();
+
         return true;
       }
 
       case MotionEvent.ACTION_MOVE: {
-        if (isDragging[0]) {
+        if (isHolding[0]) {
           miniViewParams.x = oldXx.get()
               + (int) event.getRawX() - xx.get();
 
@@ -206,26 +202,31 @@ private void setBarListener() {
       }
 
       case MotionEvent.ACTION_UP: {
-        handler.removeCallbacks(startDragging);
+        handler.removeCallbacksAndMessages(null);
 
         if (isHolding[0]) {
-          int screenWidth = v.getResources()
-              .getDisplayMetrics().widthPixels;
 
-          int viewWidth = v.getWidth();
+          int screenWidth = v.getResources()
+              .getDisplayMetrics()
+              .widthPixels;
+
+          int viewWidth = miniView.getRoot().getWidth();
 
           int viewCenter = miniViewParams.x
               + (viewWidth / 2);
 
-   	  int targetX;
+          int targetX;
 
-       	  if (viewCenter < screenWidth / 2) {
-	    targetX = 0;
-	  } else {
-	    targetX = screenWidth - viewWidth;
-	  }
+          if (viewCenter < screenWidth / 2) {
+            targetX = 0;
+          } else {
+            targetX = screenWidth - viewWidth;
+          }
 
-	  animateMiniViewTo(targetX, miniViewParams.y);
+          animateMiniViewTo(
+              targetX,
+              miniViewParams.y
+          );
 
         } else {
           clientController.handleAction(
@@ -235,7 +236,6 @@ private void setBarListener() {
           );
         }
 
-        isDragging[0] = false;
         isHolding[0] = false;
 
         lastTouchTIme = System.currentTimeMillis();
@@ -244,9 +244,8 @@ private void setBarListener() {
       }
 
       case MotionEvent.ACTION_CANCEL: {
-        handler.removeCallbacks(startDragging);
+        handler.removeCallbacksAndMessages(null);
 
-        isDragging[0] = false;
         isHolding[0] = false;
 
         return true;
@@ -254,7 +253,10 @@ private void setBarListener() {
     }
 
     return true;
-  });
+  };
+
+  miniView.getRoot().setOnTouchListener(dragListener);
+  miniView.buttonSmall.setOnTouchListener(dragListener);
 }
 
   // 设置按钮监听
