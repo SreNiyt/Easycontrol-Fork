@@ -102,8 +102,10 @@ private void setBarListener() {
   AtomicInteger oldYy = new AtomicInteger();
 
   final boolean[] isDragging = {false};
+  final boolean[] isHolding = {false};
 
   Runnable startDragging = () -> {
+    isHolding[0] = true;
     isDragging[0] = true;
   };
 
@@ -122,6 +124,7 @@ private void setBarListener() {
         oldYy.set(miniViewParams.y);
 
         isDragging[0] = false;
+        isHolding[0] = false;
 
         handler.postDelayed(startDragging, HOLD_TIME);
 
@@ -153,7 +156,7 @@ private void setBarListener() {
       case MotionEvent.ACTION_UP: {
         handler.removeCallbacks(startDragging);
 
-        if (isDragging[0]) {
+        if (isHolding[0]) {
           int screenWidth = v.getResources()
               .getDisplayMetrics().widthPixels;
 
@@ -184,6 +187,8 @@ private void setBarListener() {
         }
 
         isDragging[0] = false;
+        isHolding[0] = false;
+
         lastTouchTIme = System.currentTimeMillis();
 
         return true;
@@ -191,7 +196,10 @@ private void setBarListener() {
 
       case MotionEvent.ACTION_CANCEL: {
         handler.removeCallbacks(startDragging);
+
         isDragging[0] = false;
+        isHolding[0] = false;
+
         return true;
       }
     }
