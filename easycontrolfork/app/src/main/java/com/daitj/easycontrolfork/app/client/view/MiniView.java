@@ -12,7 +12,6 @@ import android.view.WindowManager;
 import android.view.VelocityTracker;
 import android.animation.ValueAnimator;
 import android.view.animation.DecelerateInterpolator;
-import android.view.Choreographer;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -82,151 +81,92 @@ private void animateMiniViewTo(int targetX, int targetY) {
   animator.start();
 }
 
-private void flingMiniView(
-    float velocityX,
-    float velocityY
-) {
-  final int screenWidth =
-      AppData.applicationContext
-          .getResources()
-          .getDisplayMetrics()
-          .widthPixels;
+private void flingMiniView(float velocityX, float velocityY) {
+  int screenWidth = AppData.applicationContext
+      .getResources()
+      .getDisplayMetrics()
+      .widthPixels;
 
-  final int screenHeight =
-      AppData.applicationContext
-          .getResources()
-          .getDisplayMetrics()
-          .heightPixels;
+  int screenHeight = AppData.applicationContext
+      .getResources()
+      .getDisplayMetrics()
+      .heightPixels;
 
-  final int viewWidth =
-      miniView.getRoot().getWidth();
-
-  final int viewHeight =
-      miniView.getRoot().getHeight();
+  int viewWidth = miniView.getRoot().getWidth();
+  int viewHeight = miniView.getRoot().getHeight();
 
   final float[] vx = {velocityX};
   final float[] vy = {velocityY};
 
-  final long[] lastTime = {
-      System.nanoTime()
-  };
+  final float friction = 0.92f;
 
-  // Friction.
-  // Smaller = stops faster.
-  final float friction = 0.90f;
+  ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
 
-  Choreographer.FrameCallback frameCallback =
-      new Choreographer.FrameCallback() {
+  animator.setDuration(2000);
 
-    @Override
-    public void doFrame(long frameTimeNanos) {
+  animator.addUpdateListener(animation -> {
 
-      long now = frameTimeNanos;
+    vx[0] *= friction;
+    vy[0] *= friction;
 
-      float dt =
-          (now - lastTime[0]) / 1_000_000_000f;
+    miniViewParams.x += (int) (vx[0] * 0.016f);
+    miniViewParams.y += (int) (vy[0] * 0.016f);
 
-      lastTime[0] = now;
+    boolean hitEdge = false;
 
-      // Prevent huge jumps if the app was paused.
-      dt = Math.min(dt, 0.05f);
-
-      // Apply friction based on frame time.
-      float frictionFactor =
-          (float) Math.pow(friction, dt * 60f);
-
-      vx[0] *= frictionFactor;
-      vy[0] *= frictionFactor;
-
-      // Move using velocity.
-      miniViewParams.x +=
-          (int) (vx[0] * dt);
-
-      miniViewParams.y +=
-          (int) (vy[0] * dt);
-
-      boolean hitLeft =
-          miniViewParams.x <= 0;
-
-      boolean hitRight =
-          miniViewParams.x >= screenWidth - viewWidth;
-
-      boolean hitTop =
-          miniViewParams.y <= 0;
-
-      boolean hitBottom =
-          miniViewParams.y >= screenHeight - viewHeight;
-
-      // Stop at horizontal edges.
-      if (hitLeft) {
-        miniViewParams.x = 0;
-        vx[0] = 0;
-      }
-
-      if (hitRight) {
-        miniViewParams.x =
-            screenWidth - viewWidth;
-
-        vx[0] = 0;
-      }
-
-      // Keep vertical movement inside screen.
-      if (hitTop) {
-        miniViewParams.y = 0;
-        vy[0] = 0;
-      }
-
-      if (hitBottom) {
-        miniViewParams.y =
-            screenHeight - viewHeight;
-
-        vy[0] = 0;
-      }
-
-      device.miniY =
-          miniViewParams.y;
-
-      AppData.windowManager.updateViewLayout(
-          miniView.getRoot(),
-          miniViewParams
-      );
-
-      // Stop when the velocity is almost zero.
-      if (Math.abs(vx[0]) < 5
-          && Math.abs(vy[0]) < 5) {
-
-        // Choose the nearest horizontal edge.
-        int targetX;
-
-        if (miniViewParams.x
-            < screenWidth / 2) {
-
-          targetX = 0;
-
-        } else {
-
-          targetX =
-              screenWidth - viewWidth;
-        }
-
-        animateMiniViewTo(
-            targetX,
-            miniViewParams.y
-        );
-
-        return;
-      }
-
-      // Continue next frame.
-      Choreographer
-          .getInstance()
-          .postFrameCallback(this);
+    if (miniViewParams.x <= 0) {
+      miniViewParams.x = 0;
+      hitEdge = true;
     }
-  };
 
-  Choreographer
-      .getInstance()
-      .postFrameCallback(frameCallback);
+    else if (miniViewParams.x >= screenWidth - viewWidth) {
+      miniViewParams.x = screenWidth - viewWidth;
+      hitEdge = true;
+    }
+
+    if (miniViewParams.y <= 0) {
+      miniViewParams.y = 0;
+      hitEdge = true;
+    }
+
+    else if (miniViewParams.y >= screenHeight - viewHeight) {
+      miniViewParams.y = screenHeight - viewHeight;
+      hitEdge = true;
+    }
+
+    device.miniY = miniViewParams.y;
+
+    AppData.windowManager.updateViewLayout(
+        miniView.getRoot(),
+        miniViewParams
+    );
+
+    if (hitEdge) {
+      animator.cancel();
+      return;
+    }
+
+    if (Math.abs(vx[0]) < 10
+        && Math.abs(vy[0]) < 10) {
+
+      animator.cancel();
+
+      int targetX;
+
+      if (miniViewParams.x < screenWidth / 2) {
+        targetX = 0;
+      } else {
+        targetX = screenWidth - viewWidth;
+      }
+
+      animateMiniViewTo(
+          targetX,
+          miniViewParams.y
+      );
+    }
+  });
+
+  animator.start();
 }
 
   public void show(ByteBuffer byteBuffer) {
@@ -347,11 +287,10 @@ private void setBarListener() {
         float velocityY = velocityTracker[0].getYVelocity();
 
         if (isDragging[0]) {
-
-          flingMiniView(
-              velocityX,
-              velocityY
-          );
+	  flingMiniView(
+	      velocityX,
+	      velocityY
+	  );
 
         } else {
 
@@ -363,8 +302,6 @@ private void setBarListener() {
         }
 
         isDragging[0] = false;
-
-        velocityTracker[0].clear();
 
         lastTouchTIme = System.currentTimeMillis();
 
