@@ -175,7 +175,6 @@ public class ClientController implements TextureView.SurfaceTextureListener {
   }
 
 private synchronized void changeToSmall() {
-  hide();
 
   if (noFloatPermission()) {
     PublicTools.logToast(
@@ -187,7 +186,16 @@ private synchronized void changeToSmall() {
   } else {
     if (smallView == null) smallView = new SmallView(device.uuid);
 
-    AppData.uiHandler.post(smallView::show);
+    AppData.uiHandler.post(() -> {
+
+        smallView.show();
+
+        if (miniView != null)
+            miniView.hide();
+
+        if (fullView != null)
+            fullView.hide();
+    });
     updateSite(null);
 
     if (videoPaused) {
@@ -202,7 +210,6 @@ private synchronized void changeToSmall() {
 }
 
 private synchronized void changeToMini(ByteBuffer byteBuffer) {
-  hide();
 
   if (noFloatPermission()) {
     PublicTools.logToast(
@@ -213,7 +220,16 @@ private synchronized void changeToMini(ByteBuffer byteBuffer) {
     changeToFull();
   } else {
     if (miniView == null) miniView = new MiniView(device.uuid);
-    AppData.uiHandler.post(() -> miniView.show(byteBuffer));
+    AppData.uiHandler.post(() -> {
+
+        miniView.show(byteBuffer);
+
+        if (smallView != null)
+            smallView.hide();
+
+        if (fullView != null)
+            fullView.hide();
+    });
 
     if (!videoPaused) {
       videoPaused = true;
