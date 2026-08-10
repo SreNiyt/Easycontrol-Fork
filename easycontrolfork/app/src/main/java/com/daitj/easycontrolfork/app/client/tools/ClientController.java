@@ -43,6 +43,7 @@ public class ClientController implements TextureView.SurfaceTextureListener {
   private final TextureView textureView = new TextureView(AppData.applicationContext);
   private SurfaceTexture surfaceTexture;
   private boolean videoPaused = false;
+  private int physicalRotation = Surface.ROTATION_0;
 
   private SmallView smallView;
   private MiniView miniView;
@@ -161,6 +162,13 @@ public class ClientController implements TextureView.SurfaceTextureListener {
 
   public void setFullView(FullActivity fullView) {
     this.fullView = fullView;
+  }
+
+  public void setPhysicalRotation(int rotation) {
+      if (this.physicalRotation != rotation) {
+          this.physicalRotation = rotation;
+          AppData.uiHandler.post(this::reCalculateTextureViewSize);
+      }
   }
 
   public TextureView getTextureView() {
@@ -364,19 +372,13 @@ private void reCalculateTextureViewSize() {
     layoutParams.height = surfaceSize.second;
     textureView.setLayoutParams(layoutParams);
 
-    // Rotate virtual landscape according to the physical display orientation.
     if (isVirtualLandscape) {
-        Display display = textureView.getDisplay();
-
-        if (display != null && display.getRotation() == Surface.ROTATION_270) {
-            // Reverse landscape
+        if (this.physicalRotation == Surface.ROTATION_270) {
             textureView.setRotation(-90f);
         } else {
-            // Normal landscape
             textureView.setRotation(90f);
         }
     } else {
-        // Reset rotation for portrait and normal layouts.
         textureView.setRotation(0f);
     }
 }

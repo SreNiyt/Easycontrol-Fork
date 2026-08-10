@@ -8,6 +8,8 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.OrientationEventListener;
+import android.view.Surface;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -29,6 +31,7 @@ public class FullActivity extends Activity {
   private ActivityFullBinding activityFullBinding;
   private boolean autoRotate;
   private boolean light = true;
+  private OrientationEventListener orientationEventListener
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -58,6 +61,41 @@ public class FullActivity extends Activity {
     // 更新textureView
     activityFullBinding.textureViewLayout.addView(clientController.getTextureView(), 0);
     activityFullBinding.textureViewLayout.post(this::updateMaxSize);
+  }
+
+    orientationEventListener = new OrientationEventListener(this) {
+      @Override
+      public void onOrientationChanged(int orientation) {
+        if (orientation == OrientationEventListener.ORIENTATION_UNKNOWN) return;
+
+        int newRotation;
+        if (orientation >= 45 && orientation < 135) {
+          newRotation = Surface.ROTATION_270;
+        } else if (orientation >= 135 && orientation < 225) {
+          newRotation = Surface.ROTATION_180;
+        } else if (orientation >= 225 && orientation < 315) {
+          newRotation = Surface.ROTATION_90;
+        } else {
+          newRotation = Surface.ROTATION_0;
+        }
+
+        if (clientController != null) {
+          clientController.setPhysicalRotation(newRotation);
+        }
+      }
+    };
+    
+    if (orientationEventListener.canDetectOrientation()) {
+      orientationEventListener.enable();
+    }
+  }
+
+  @Override
+  protected void onDestroy() {
+    if (orientationEventListener != null) {
+      orientationEventListener.disable();
+    }
+    super.onDestroy();
   }
 
   @Override
