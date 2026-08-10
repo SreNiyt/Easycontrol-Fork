@@ -102,10 +102,12 @@ public class ClientStream {
         try {
           if (!mainConn) {
             mainSocket = new Socket();
+	    mainSocket.setReceiveBufferSize(128 * 1024);
             mainSocket.connect(inetSocketAddress, timeoutDelay / 2);
             mainConn = true;
           }
           videoSocket = new Socket();
+	  videoSocket.setReceiveBufferSize(128 * 1024);
           videoSocket.connect(inetSocketAddress, timeoutDelay / 2);
           mainOutputStream = mainSocket.getOutputStream();
           mainDataInputStream = new DataInputStream(mainSocket.getInputStream());

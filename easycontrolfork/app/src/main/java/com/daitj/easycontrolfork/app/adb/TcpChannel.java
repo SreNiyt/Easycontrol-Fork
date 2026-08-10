@@ -13,6 +13,8 @@ public class TcpChannel implements AdbChannel {
 
   public TcpChannel(String host, int port) throws IOException {
     socket = new Socket(host, port);
+    socket.setReceiveBufferSize(128 * 1024);
+    socket.setSendBufferSize(128 * 1024);
     inputStream = socket.getInputStream();
     outputStream = socket.getOutputStream();
   }
