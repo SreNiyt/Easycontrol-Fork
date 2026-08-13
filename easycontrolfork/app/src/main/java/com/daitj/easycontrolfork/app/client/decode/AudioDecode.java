@@ -6,7 +6,6 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
-import android.media.audiofx.LoudnessEnhancer;
 import android.os.Build;
 import android.os.Handler;
 
@@ -14,16 +13,20 @@ import androidx.annotation.NonNull;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class AudioDecode {
   private MediaCodec decodec;
   private AudioTrack audioTrack;
-  private LoudnessEnhancer loudnessEnhancer;
   private static final int SAMPLE_RATE = 48000;
   private static final int CHANNELS = 2;
   private static final int BYTES_PER_SAMPLE = 2;
   private static final int AUDIO_PACKET_SIZE = SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE * 40 / 1000;
+
+  private static final float VOLUME_MULTIPLIER = 1.778f;
+  private byte[] pcmBuffer = new byte[AUDIO_PACKET_SIZE * 4];
+
   private final MediaCodec.Callback callback = new MediaCodec.Callback() {
     @Override
     public void onInputBufferAvailable(@NonNull MediaCodec mediaCodec, int inIndex) {
@@ -35,7 +38,30 @@ public class AudioDecode {
       try {
         ByteBuffer buffer = decodec.getOutputBuffer(outIndex);
         if (buffer == null) return;
-        audioTrack.write(buffer, bufferInfo.size, AudioTrack.WRITE_NON_BLOCKING);
+
+        if (bufferInfo.size > 0) {
+          if (pcmBuffer.length < bufferInfo.size) {
+            pcmBuffer = new byte[bufferInfo.size];
+          }
+
+          buffer.position(bufferInfo.offset);
+          buffer.get(pcmBuffer, 0, bufferInfo.size);
+
+          for (int i = 0; i < bufferInfo.size; i += 2) {
+            short sample = (short) ((pcmBuffer[i] & 0xFF) | (pcmBuffer[i + 1] << 8));
+            int amplified = (int) (sample * VOLUME_MULTIPLIER);
+
+            if (amplified > Short.MAX_VALUE) {
+                amplified = Short.MAX_VALUE;
+            } else if (amplified < Short.MIN_VALUE) {
+                amplified = Short.MIN_VALUE;
+            }
+            pcmBuffer[i] = (byte) (amplified & 0xFF);
+            pcmBuffer[i + 1] = (byte) ((amplified >> 8) & 0xFF);
+          }
+          audioTrack.write(pcmBuffer, 0, bufferInfo.size, AudioTrack.WRITE_NON_BLOCKING);
+        }
+
         decodec.releaseOutputBuffer(outIndex, false);
       } catch (IllegalStateException ignored) {
       }
@@ -51,12 +77,8 @@ public class AudioDecode {
   };
 
   public AudioDecode(boolean useOpus, ByteBuffer csd0, Handler playHandler) throws IOException {
-    // 创建Codec
     setAudioDecodec(useOpus, csd0, playHandler);
-    // 创建AudioTrack
     setAudioTrack();
-    // 创建音频放大器
-    setLoudnessEnhancer();
   }
 
   public void release() {
@@ -65,7 +87,6 @@ public class AudioDecode {
       decodec.release();
       audioTrack.stop();
       audioTrack.release();
-      loudnessEnhancer.release();
     } catch (Exception ignored) {
     }
   }
@@ -81,62 +102,71 @@ public class AudioDecode {
     }
   }
 
-  // 创建Codec
   private void setAudioDecodec(boolean useOpus, ByteBuffer csd0, Handler playHandler) throws IOException {
-    // 创建解码器
     String codecMime = useOpus ? MediaFormat.MIMETYPE_AUDIO_OPUS : MediaFormat.MIMETYPE_AUDIO_AAC;
     decodec = MediaCodec.createDecoderByType(codecMime);
-    // 音频参数
     int bitRate = 128000;
     MediaFormat decodecFormat = MediaFormat.createAudioFormat(codecMime, SAMPLE_RATE, CHANNELS);
     decodecFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
     decodecFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, AUDIO_PACKET_SIZE);
-    // 获取音频标识头
     decodecFormat.setByteBuffer("csd-0", csd0);
     if (useOpus) {
       ByteBuffer csd12ByteBuffer = ByteBuffer.wrap(new byte[]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
       decodecFormat.setByteBuffer("csd-1", csd12ByteBuffer);
       decodecFormat.setByteBuffer("csd-2", csd12ByteBuffer);
     }
-    // 异步解码
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && playHandler != null) {
       decodec.setCallback(callback, playHandler);
     } else decodec.setCallback(callback);
-    // 配置解码器
     decodec.configure(decodecFormat, null, null, 0);
-    // 启动解码器
     decodec.start();
   }
 
-  // 创建AudioTrack
   private void setAudioTrack() {
     int bufferSize = Math.min(AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT) * 8, 16 * AUDIO_PACKET_SIZE);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       AudioTrack.Builder audioTrackBuild = new AudioTrack.Builder();
-      // 1
       AudioAttributes.Builder audioAttributesBulider = new AudioAttributes.Builder();
       audioAttributesBulider.setUsage(AudioAttributes.USAGE_MEDIA);
       audioAttributesBulider.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC);
-      // 2
+      
       AudioFormat.Builder audioFormat = new AudioFormat.Builder();
       audioFormat.setEncoding(AudioFormat.ENCODING_PCM_16BIT);
       audioFormat.setSampleRate(SAMPLE_RATE);
       audioFormat.setChannelMask(AudioFormat.CHANNEL_OUT_STEREO);
-      // 3
+      
       audioTrackBuild.setAudioAttributes(audioAttributesBulider.build())
         .setAudioFormat(audioFormat.build())
         .setTransferMode(AudioTrack.MODE_STREAM)
         .setBufferSizeInBytes(bufferSize);
-      // 4
       audioTrack = audioTrackBuild.build();
-    } else audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, bufferSize, AudioTrack.MODE_STREAM);
+    } else {
+      audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, bufferSize, AudioTrack.MODE_STREAM);
+    }
     audioTrack.play();
   }
 
-  // 创建音频放大器
-  private void setLoudnessEnhancer() {
-    loudnessEnhancer = new LoudnessEnhancer(audioTrack.getAudioSessionId());
-    loudnessEnhancer.setTargetGain(500);
-    loudnessEnhancer.setEnabled(true);
+  private ByteBuffer amplifyPcmData(ByteBuffer src, int size) {
+    src.position(0);
+    ByteBuffer dest = ByteBuffer.allocateDirect(size);
+    dest.order(ByteOrder.LITTLE_ENDIAN);
+
+    for (int i = 0; i < size; i += 2) {
+      if (i + 1 < size) {
+        short sample = src.getShort(i);
+        int amplified = (int) (sample * VOLUME_MULTIPLIER);
+        
+        if (amplified > Short.MAX_VALUE) {
+          amplified = Short.MAX_VALUE;
+        } else if (amplified < Short.MIN_VALUE) {
+          amplified = Short.MIN_VALUE;
+        }
+        
+        dest.putShort((short) amplified);
+      }
+    }
+    dest.flip();
+    return dest;
   }
 }
+
