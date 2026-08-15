@@ -24,9 +24,10 @@ public class AudioDecode {
   private static final int BYTES_PER_SAMPLE = 2;
   private static final int AUDIO_PACKET_SIZE = SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE * 40 / 1000;
 
-  private static final float VOLUME_MULTIPLIER = 1.778f;
+  private static final float VOLUME_MULTIPLIER = 3.162f; 
+  
   private byte[] pcmBuffer = new byte[AUDIO_PACKET_SIZE * 4];
-
+  
   private final MediaCodec.Callback callback = new MediaCodec.Callback() {
     @Override
     public void onInputBufferAvailable(@NonNull MediaCodec mediaCodec, int inIndex) {
@@ -43,22 +44,27 @@ public class AudioDecode {
           if (pcmBuffer.length < bufferInfo.size) {
             pcmBuffer = new byte[bufferInfo.size];
           }
-
+          
           buffer.position(bufferInfo.offset);
           buffer.get(pcmBuffer, 0, bufferInfo.size);
 
-          for (int i = 0; i < bufferInfo.size; i += 2) {
+          int limit = bufferInfo.size - 1; 
+          for (int i = 0; i < limit; i += 2) {
             short sample = (short) ((pcmBuffer[i] & 0xFF) | (pcmBuffer[i + 1] << 8));
-            int amplified = (int) (sample * VOLUME_MULTIPLIER);
-
+            float amplifiedFloat = sample * VOLUME_MULTIPLIER;
+            
+            int amplified = (int) amplifiedFloat;
+            
             if (amplified > Short.MAX_VALUE) {
                 amplified = Short.MAX_VALUE;
             } else if (amplified < Short.MIN_VALUE) {
                 amplified = Short.MIN_VALUE;
             }
+            
             pcmBuffer[i] = (byte) (amplified & 0xFF);
             pcmBuffer[i + 1] = (byte) ((amplified >> 8) & 0xFF);
           }
+          
           audioTrack.write(pcmBuffer, 0, bufferInfo.size, AudioTrack.WRITE_NON_BLOCKING);
         }
 
@@ -129,12 +135,12 @@ public class AudioDecode {
       AudioAttributes.Builder audioAttributesBulider = new AudioAttributes.Builder();
       audioAttributesBulider.setUsage(AudioAttributes.USAGE_MEDIA);
       audioAttributesBulider.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC);
-      
+
       AudioFormat.Builder audioFormat = new AudioFormat.Builder();
       audioFormat.setEncoding(AudioFormat.ENCODING_PCM_16BIT);
       audioFormat.setSampleRate(SAMPLE_RATE);
       audioFormat.setChannelMask(AudioFormat.CHANNEL_OUT_STEREO);
-      
+
       audioTrackBuild.setAudioAttributes(audioAttributesBulider.build())
         .setAudioFormat(audioFormat.build())
         .setTransferMode(AudioTrack.MODE_STREAM)
@@ -144,29 +150,6 @@ public class AudioDecode {
       audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, bufferSize, AudioTrack.MODE_STREAM);
     }
     audioTrack.play();
-  }
-
-  private ByteBuffer amplifyPcmData(ByteBuffer src, int size) {
-    src.position(0);
-    ByteBuffer dest = ByteBuffer.allocateDirect(size);
-    dest.order(ByteOrder.LITTLE_ENDIAN);
-
-    for (int i = 0; i < size; i += 2) {
-      if (i + 1 < size) {
-        short sample = src.getShort(i);
-        int amplified = (int) (sample * VOLUME_MULTIPLIER);
-        
-        if (amplified > Short.MAX_VALUE) {
-          amplified = Short.MAX_VALUE;
-        } else if (amplified < Short.MIN_VALUE) {
-          amplified = Short.MIN_VALUE;
-        }
-        
-        dest.putShort((short) amplified);
-      }
-    }
-    dest.flip();
-    return dest;
   }
 }
 
