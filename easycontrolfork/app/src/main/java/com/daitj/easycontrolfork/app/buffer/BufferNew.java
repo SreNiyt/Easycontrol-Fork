@@ -9,19 +9,28 @@ public class BufferNew {
   private boolean isClosed = false;
   private final ConcurrentLinkedDeque<ByteBuffer> dataQueue = new ConcurrentLinkedDeque<>();
   private final AtomicInteger totalBytes = new AtomicInteger(0);
+  private final Object waitLock = new Object();
 
   public void write(ByteBuffer data) {
     if (isClosed || data == null) return;
     totalBytes.addAndGet(data.remaining());
     dataQueue.offerLast(data);
+    synchronized (waitLock) {
+      waitLock.notifyAll();
+    }
   }
 
   public synchronized ByteBuffer read(int len) throws InterruptedException, IOException {
     if (len < 0 || isClosed) throw new IOException("BufferNew error");
-    
-    // Check if we have enough data available
+
+    // Block until enough data is available instead of spinning on Thread.yield()
     while (totalBytes.get() < len && !isClosed) {
-      Thread.yield();
+      synchronized (waitLock) {
+        // recheck after acquiring the lock, in case write()/close() already fired
+        if (totalBytes.get() < len && !isClosed) {
+          waitLock.wait(200); // timeout is just a safety net, not required for correctness
+        }
+      }
     }
     if (isClosed) throw new IOException("BufferNew error");
 
@@ -88,6 +97,9 @@ public class BufferNew {
     if (isClosed) return;
     isClosed = true;
     dataQueue.offer(ByteBuffer.allocate(1));
+    synchronized (waitLock) {
+      waitLock.notifyAll();
+    }
   }
 }
 

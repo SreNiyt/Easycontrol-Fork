@@ -36,6 +36,12 @@ public class ClientStream {
 
   private static final int timeoutDelay = 1000 * 15;
 
+  // Sane upper bound for a single encoded frame. Guards against a corrupted or
+  // desynced stream handing us a garbage length, which would otherwise trigger
+  // a huge or negative array allocation (OOM / NegativeArraySizeException) and,
+  // downstream, a BufferOverflowException in VideoDecode.decodeIn().
+  private static final int MAX_FRAME_SIZE = 32 * 1024 * 1024; // 32MB
+
   public ClientStream(Device device, MyInterface.MyFunctionBoolean handle) {
     // 超时
     Thread timeOutThread = new Thread(() -> {
@@ -102,12 +108,12 @@ public class ClientStream {
         try {
           if (!mainConn) {
             mainSocket = new Socket();
-	    mainSocket.setReceiveBufferSize(128 * 1024);
+            mainSocket.setReceiveBufferSize(128 * 1024);
             mainSocket.connect(inetSocketAddress, timeoutDelay / 2);
             mainConn = true;
           }
           videoSocket = new Socket();
-	  videoSocket.setReceiveBufferSize(128 * 1024);
+          videoSocket.setReceiveBufferSize(128 * 1024);
           videoSocket.connect(inetSocketAddress, timeoutDelay / 2);
           mainOutputStream = mainSocket.getOutputStream();
           mainDataInputStream = new DataInputStream(mainSocket.getInputStream());
@@ -180,12 +186,15 @@ public class ClientStream {
 
   public ByteBuffer readFrameFromMain() throws Exception {
     if (!connectDirect) mainBufferStream.flush();
-    return readByteArrayFromMain(readIntFromMain());
+    int size = readIntFromMain();
+    if (size < 0 || size > MAX_FRAME_SIZE) throw new IOException("Invalid frame size from main: " + size);
+    return readByteArrayFromMain(size);
   }
 
   public ByteBuffer readFrameFromVideo() throws Exception {
     if (!connectDirect) videoBufferStream.flush();
     int size = readIntFromVideo();
+    if (size < 0 || size > MAX_FRAME_SIZE) throw new IOException("Invalid frame size from video: " + size);
     return readByteArrayFromVideo(size);
   }
 
@@ -227,3 +236,4 @@ public class ClientStream {
     }
   }
 }
+
