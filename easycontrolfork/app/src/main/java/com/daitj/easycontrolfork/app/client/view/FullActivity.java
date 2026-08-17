@@ -79,7 +79,6 @@ public class FullActivity extends Activity {
         }
 
         if (clientController != null) {
-          clientController.setPhysicalRotation(newRotation);
         }
       }
     };

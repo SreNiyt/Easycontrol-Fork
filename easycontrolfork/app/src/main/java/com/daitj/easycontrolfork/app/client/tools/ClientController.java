@@ -6,7 +6,6 @@ import android.annotation.SuppressLint;
 import android.content.ClipData;
 import android.content.Intent;
 import android.graphics.SurfaceTexture;
-import android.view.Surface;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -43,7 +42,6 @@ public class ClientController implements TextureView.SurfaceTextureListener {
   private final TextureView textureView = new TextureView(AppData.applicationContext);
   private SurfaceTexture surfaceTexture;
   private boolean videoPaused = false;
-  private int physicalRotation = Surface.ROTATION_0;
 
   private SmallView smallView;
   private MiniView miniView;
@@ -83,8 +81,7 @@ public class ClientController implements TextureView.SurfaceTextureListener {
         case "changeToFull":
           changeToFull();
           break;
-        case "changeToMini":
-          changeToMini(byteBuffer);
+        case "changeToMini":                                                                                   changeToMini(byteBuffer);
           break;
         case "changeToApp":
           changeToApp();
@@ -164,12 +161,6 @@ public class ClientController implements TextureView.SurfaceTextureListener {
     this.fullView = fullView;
   }
 
-  public void setPhysicalRotation(int rotation) {
-      if (this.physicalRotation != rotation) {
-          this.physicalRotation = rotation;
-          AppData.uiHandler.post(this::reCalculateTextureViewSize);
-      }
-  }
 
   public TextureView getTextureView() {
     return textureView;
@@ -311,6 +302,7 @@ private synchronized void changeToMini(ByteBuffer byteBuffer) {
     if (width <= 100 || height <= 100) return;
     this.videoSize = new Pair<>(width, height);
     updateSite(null);
+
     AppData.uiHandler.post(this::reCalculateTextureViewSize);
   }
 
@@ -338,15 +330,7 @@ private void reCalculateTextureViewSize() {
 
     Pair<Integer, Integer> calcMaxSize = this.maxSize;
 
-    // Detect landscape video displayed while the available screen area is portrait.
-    boolean isVirtualLandscape = (videoSize.first > videoSize.second)
-            && (this.maxSize.second > this.maxSize.first)
-            && (smallView == null || !smallView.isShow());
-
-    if (isVirtualLandscape) {
-        // Treat the available area as if the device were already rotated.
-        calcMaxSize = new Pair<>(this.maxSize.second, this.maxSize.first);
-    } else if (smallView != null && smallView.isShow()) {
+    if (smallView != null && smallView.isShow()) {
         if (videoSize.first < videoSize.second) {
             calcMaxSize = new Pair<>(this.maxSize.first, this.maxSize.first);
         } else {
@@ -371,16 +355,6 @@ private void reCalculateTextureViewSize() {
     layoutParams.width = surfaceSize.first;
     layoutParams.height = surfaceSize.second;
     textureView.setLayoutParams(layoutParams);
-
-    if (isVirtualLandscape) {
-        if (this.physicalRotation == Surface.ROTATION_270) {
-            textureView.setRotation(-90f);
-        } else {
-            textureView.setRotation(90f);
-        }
-    } else {
-        textureView.setRotation(0f);
-    }
 }
 
   // 检查画面是否超出
@@ -474,3 +448,4 @@ private void reCalculateTextureViewSize() {
   }
 
 }
+
