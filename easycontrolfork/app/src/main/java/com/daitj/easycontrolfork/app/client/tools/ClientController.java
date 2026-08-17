@@ -159,7 +159,18 @@ public class ClientController implements TextureView.SurfaceTextureListener {
   }
 
   public void setFullView(FullActivity fullView) {
-    this.fullView = fullView;
+      this.fullView = fullView;
+
+      if (videoSize != null) {
+          Pair<Integer, Integer> size = videoSize;
+
+          AppData.uiHandler.post(() ->
+              fullView.updateRemoteOrientation(
+                  size.first,
+                  size.second
+              )
+          );
+      }
   }
 
   public TextureView getTextureView() {
@@ -296,14 +307,21 @@ private synchronized void changeToMini(ByteBuffer byteBuffer) {
     AppData.uiHandler.post(this::reCalculateTextureViewSize);
   }
 
-  private void updateVideoSize(ByteBuffer byteBuffer) {
+private void updateVideoSize(ByteBuffer byteBuffer) {
     int width = byteBuffer.getInt();
     int height = byteBuffer.getInt();
+
     if (width <= 100 || height <= 100) return;
+
     this.videoSize = new Pair<>(width, height);
+
+    if (fullView != null) {
+        fullView.updateRemoteOrientation(width, height);
+    }
+
     updateSite(null);
     AppData.uiHandler.post(this::reCalculateTextureViewSize);
-  }
+}
 
   private void updateSite(ByteBuffer byteBuffer) {
     if (smallView == null || videoSize == null || !smallView.isShow()) return;

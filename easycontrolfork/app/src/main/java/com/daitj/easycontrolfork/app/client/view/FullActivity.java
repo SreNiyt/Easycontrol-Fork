@@ -160,26 +160,66 @@ public class FullActivity extends Activity implements SensorEventListener {
     }));
   }
 
+////////////
+
   private int lastOrientation = -1;
+  private boolean remoteLandscape = false;
+  private float[] lastSensorValues;
 
-  @Override
-  public void onSensorChanged(SensorEvent sensorEvent) {
-    if (!autoRotate || Sensor.TYPE_ACCELEROMETER != sensorEvent.sensor.getType()) return;
-    float[] values = sensorEvent.values;
-    float x = values[0];
-    float y = values[1];
-    int newOrientation = lastOrientation;
+@Override
+public void onSensorChanged(SensorEvent sensorEvent) {
+    if (Sensor.TYPE_ACCELEROMETER != sensorEvent.sensor.getType()) return;
 
-    if (x > -3 && x < 3 && y >= 4.5) newOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-    else if (y > -3 && y < 3 && x >= 4.5) newOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-    else if (y > -3 && y < 3 && x <= -4.5) newOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
-    else if (x > -3 && x < 3 && y <= -4.5) newOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT;
+    lastSensorValues = sensorEvent.values.clone();
 
-    if (lastOrientation != newOrientation) {
-      lastOrientation = newOrientation;
-      setRequestedOrientation(newOrientation);
+    if (remoteLandscape) {
+        updateLandscapeOrientation();
     }
-  }
+}
+
+public void updateRemoteOrientation(int width, int height) {
+    remoteLandscape = width > height;
+
+    if (!remoteLandscape) {
+        setLocalOrientation(
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        );
+        return;
+    }
+
+    setLocalOrientation(
+        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+    );
+
+    updateLandscapeOrientation();
+}
+
+private void updateLandscapeOrientation() {
+    if (!remoteLandscape || lastSensorValues == null) return;
+
+    float x = lastSensorValues[0];
+    float y = lastSensorValues[1];
+
+    if (y > -3 && y < 3) {
+        if (x >= 4.5) {
+            setLocalOrientation(
+                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            );
+        } else if (x <= -4.5) {
+            setLocalOrientation(
+                ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            );
+        }
+    }
+}
+
+private void setLocalOrientation(int orientation) {
+    if (lastOrientation == orientation) return;
+
+    lastOrientation = orientation;
+    setRequestedOrientation(orientation);
+}
+////////////
 
   @Override
   public void onAccuracyChanged(Sensor sensor, int i) {
