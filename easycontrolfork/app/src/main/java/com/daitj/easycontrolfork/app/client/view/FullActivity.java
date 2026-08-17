@@ -31,7 +31,7 @@ public class FullActivity extends Activity {
   private ActivityFullBinding activityFullBinding;
   private boolean autoRotate;
   private boolean light = true;
-  private OrientationEventListener orientationEventListener;
+  private OrientationEventListener orientationEventListener
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +61,7 @@ public class FullActivity extends Activity {
     // 更新textureView
     activityFullBinding.textureViewLayout.addView(clientController.getTextureView(), 0);
     activityFullBinding.textureViewLayout.post(this::updateMaxSize);
+  }
 
     orientationEventListener = new OrientationEventListener(this) {
       @Override
