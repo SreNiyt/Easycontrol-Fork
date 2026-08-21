@@ -196,12 +196,6 @@ public final class Server {
           case 9:
             Device.changeResolution(mainInputStream.readInt(), mainInputStream.readInt());
             break;
-          case 10:
-            VideoEncode.stopEncode();
-            break;
-          case 11:
-            VideoEncode.startEncode();
-            break;
         }
       }
     } catch (Exception e) {

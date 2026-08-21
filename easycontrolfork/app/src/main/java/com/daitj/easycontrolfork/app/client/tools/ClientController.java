@@ -41,7 +41,6 @@ public class ClientController implements TextureView.SurfaceTextureListener {
   private final MyInterface.MyFunction handle;
   private final TextureView textureView = new TextureView(AppData.applicationContext);
   private SurfaceTexture surfaceTexture;
-  private boolean videoPaused = false;
 
   private SmallView smallView;
   private MiniView miniView;
@@ -207,15 +206,6 @@ private synchronized void changeToSmall() {
             fullView.hide();
     });
     updateSite(null);
-
-    if (videoPaused) {
-      videoPaused = false;
-      try {
-        clientStream.resumeVideo();
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
   }
 }
 
@@ -240,15 +230,6 @@ private synchronized void changeToMini(ByteBuffer byteBuffer) {
         if (fullView != null)
             fullView.hide();
     });
-
-    if (!videoPaused) {
-      videoPaused = true;
-      try {
-        clientStream.pauseVideo();
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
   }
 }
 
