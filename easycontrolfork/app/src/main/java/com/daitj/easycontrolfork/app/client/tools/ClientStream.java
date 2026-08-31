@@ -189,12 +189,24 @@ public class ClientStream {
     return readByteArrayFromVideo(size);
   }
 
-  public void writeToMain(ByteBuffer byteBuffer) throws Exception {
-    if (connectDirect) mainOutputStream.write(byteBuffer.array());
-    else mainBufferStream.write(byteBuffer);
+  public synchronized void writeToMain(ByteBuffer byteBuffer) throws Exception {
+      if (isClose || byteBuffer == null) return;
+
+      if (connectDirect) {
+          if (mainOutputStream == null || mainSocket == null || mainSocket.isClosed()) {
+              return;
+          }
+
+          mainOutputStream.write(byteBuffer.array());
+          mainOutputStream.flush();
+      } else {
+          if (mainBufferStream != null) {
+              mainBufferStream.write(byteBuffer);
+          }
+      }
   }
 
-  public void close() {
+  public synchronized void close() {
     if (isClose) return;
     isClose = true;
     if (shell != null) PublicTools.logToast("server", new String(shell.readByteArrayBeforeClose().array()), false);

@@ -145,8 +145,16 @@ public class ClientController implements TextureView.SurfaceTextureListener {
           break;
       }
     } catch (Exception ignored) {
-      byte[] err = ("controller" + AppData.applicationContext.getString(R.string.toast_stream_closed) + action).getBytes(StandardCharsets.UTF_8);
-      Client.sendAction(device.uuid, "close", ByteBuffer.wrap(err), 0);
+        if ("writeByteBuffer".equals(action)) {
+            return;
+        }
+
+        byte[] err = ("controller"
+                + AppData.applicationContext.getString(R.string.toast_stream_closed)
+                + action)
+                .getBytes(StandardCharsets.UTF_8);
+
+        Client.sendAction(device.uuid, "close", ByteBuffer.wrap(err), 0);
     }
   }
 
