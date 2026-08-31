@@ -360,7 +360,20 @@ private void updateVideoSize(ByteBuffer byteBuffer) {
         int i = event.getActionIndex();
         pointerDownTime[i] = event.getEventTime();
         createTouchPacket(event, MotionEvent.ACTION_DOWN, i);
-      } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP) createTouchPacket(event, MotionEvent.ACTION_UP, event.getActionIndex());
+      } else if (action == MotionEvent.ACTION_UP) {
+          createTouchPacket(event, MotionEvent.ACTION_UP, event.getActionIndex());
+
+          long now = event.getEventTime();
+
+          if (now - lastTapTime <= DOUBLE_TAP_TIMEOUT) {
+              handleAction("writeByteBuffer", ControlPacket.createPowerEvent(1), 0);
+              lastTapTime = 0;
+          } else {
+              lastTapTime = now;
+          }
+      } else if (action == MotionEvent.ACTION_POINTER_UP) {
+          createTouchPacket(event, MotionEvent.ACTION_UP, event.getActionIndex());
+      }
       else for (int i = 0; i < event.getPointerCount(); i++) createTouchPacket(event, MotionEvent.ACTION_MOVE, i);
       return true;
     });
@@ -368,6 +381,9 @@ private void updateVideoSize(ByteBuffer byteBuffer) {
 
   private final int[] pointerList = new int[20];
   private final long[] pointerDownTime = new long[10];
+
+  private long lastTapTime = 0;
+  private static final long DOUBLE_TAP_TIMEOUT = 300;
 
   private void createTouchPacket(MotionEvent event, int action, int i) {
     int offsetTime = (int) (event.getEventTime() - pointerDownTime[i]);
