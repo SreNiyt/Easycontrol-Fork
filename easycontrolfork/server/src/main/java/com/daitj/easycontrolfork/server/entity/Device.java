@@ -203,26 +203,68 @@ public final class Device {
 
   private static final PointersState pointersState = new PointersState();
 
-  public static void touchEvent(int action, Float x, Float y, int pointerId, int offsetTime) {
+  public static void touchEvent(
+      int action,
+      Float x,
+      Float y,
+      int pointerId,
+      int offsetTime) {
+
     Pointer pointer = pointersState.get(pointerId);
 
     if (pointer == null) {
-      if (action != MotionEvent.ACTION_DOWN) return;
-      pointer = pointersState.newPointer(pointerId, SystemClock.uptimeMillis() - 50);
+        if (action != MotionEvent.ACTION_DOWN) return;
+
+        pointer = pointersState.newPointer(
+          pointerId,
+          SystemClock.uptimeMillis() - 50);
+
+      if (pointer == null) return;
     }
 
     pointer.x = x * displayInfo.width;
     pointer.y = y * displayInfo.height;
+
+    int pointerIndex = pointersState.getPointerIndex(pointer.id);
     int pointerCount = pointersState.update();
 
+    if (pointerIndex < 0 || pointerIndex >= pointerCount) return;
+
     if (action == MotionEvent.ACTION_UP) {
-      pointersState.remove(pointerId);
-      if (pointerCount > 1) action = MotionEvent.ACTION_POINTER_UP | (pointer.id << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+      if (pointerCount > 1) {
+        action = MotionEvent.ACTION_POINTER_UP
+            | (pointerIndex << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+      }
     } else if (action == MotionEvent.ACTION_DOWN) {
-      if (pointerCount > 1) action = MotionEvent.ACTION_POINTER_DOWN | (pointer.id << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+      if (pointerCount > 1) {
+        action = MotionEvent.ACTION_POINTER_DOWN
+            | (pointerIndex << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+      }
     }
-    MotionEvent event = MotionEvent.obtain(pointer.downTime, pointer.downTime + offsetTime, action, pointerCount, pointersState.pointerProperties, pointersState.pointerCoords, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
+
+    MotionEvent event = MotionEvent.obtain(
+        pointer.downTime,
+        pointer.downTime + offsetTime,
+        action,
+        pointerCount,
+        pointersState.pointerProperties,
+        pointersState.pointerCoords,
+        0,
+        0,
+        1f,
+        1f,
+        0,
+        0,
+        InputDevice.SOURCE_TOUCHSCREEN,
+        0);
+
     injectEvent(event);
+
+    if (action == MotionEvent.ACTION_UP
+        || (action & MotionEvent.ACTION_MASK)
+            == MotionEvent.ACTION_POINTER_UP) {
+      pointersState.remove(pointerId);
+    }
   }
 
   public static void keyEvent(int keyCode, int meta) {
