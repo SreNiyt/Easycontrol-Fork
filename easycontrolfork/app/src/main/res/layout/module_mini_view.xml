@@ -1,29 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="32dp"
-    android:layout_height="72dp"
-    android:gravity="center_vertical"
+    android:layout_width="25dp"
+    android:layout_height="75dp"
+    android:layout_gravity="center_vertical"
+    android:background="@drawable/sidebar_handle"
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <LinearLayout
+    <View
         android:id="@+id/mini_control_layout"
-        android:layout_width="28dp"
-        android:layout_height="56dp"
-        android:layout_gravity="center_vertical|start"
-        android:background="@drawable/background_cron"
-        android:backgroundTint="@color/background"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:layout_width="5dp"
+        android:layout_height="75dp"
+        android:background="@drawable/sidebar_handle" />
 
-        <ImageView
-            android:id="@+id/button_small"
-            android:layout_width="28dp"
-            android:layout_height="56dp"
-            android:padding="7dp"
-            android:src="@drawable/ic_chevron_right"
-            android:tint="@color/onCardBackground" />
-
-    </LinearLayout>
 </FrameLayout>
