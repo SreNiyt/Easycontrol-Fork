@@ -9,8 +9,6 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.animation.ValueAnimator;
-import android.view.animation.DecelerateInterpolator;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,34 +49,6 @@ public class MiniView {
     setButtonListener();
   }
 
-private void animateMiniViewTo(int targetX, int targetY) {
-  int startX = miniViewParams.x;
-  int startY = miniViewParams.y;
-
-  ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
-
-  animator.setDuration(500);
-  animator.setInterpolator(new DecelerateInterpolator());
-
-  animator.addUpdateListener(animation -> {
-    float progress = (float) animation.getAnimatedValue();
-
-    miniViewParams.x = startX
-        + (int) ((targetX - startX) * progress);
-
-    miniViewParams.y = startY
-        + (int) ((targetY - startY) * progress);
-
-    device.miniY = miniViewParams.y;
-
-    AppData.windowManager.updateViewLayout(
-        miniView.getRoot(),
-        miniViewParams
-    );
-  });
-
-  animator.start();
-}
 
 
   public void show(ByteBuffer byteBuffer) {
@@ -124,118 +94,113 @@ private void animateMiniViewTo(int targetX, int targetY) {
   // 设置监听控制.
 @SuppressLint("ClickableViewAccessibility")
 private void setBarListener() {
-  final int touchSlop = ViewConfiguration.get(
-      AppData.applicationContext
-  ).getScaledTouchSlop();
+    final int touchSlop = ViewConfiguration.get(
+        AppData.applicationContext
+    ).getScaledTouchSlop();
 
-  AtomicInteger xx = new AtomicInteger();
-  AtomicInteger yy = new AtomicInteger();
-  AtomicInteger oldXx = new AtomicInteger();
-  AtomicInteger oldYy = new AtomicInteger();
+    final int[] startX = {0};
+    final int[] lastY = {0};
+    final boolean[] isDragging = {false};
 
-  final boolean[] isDragging = {false};
+    View.OnTouchListener listener = (v, event) -> {
+        switch (event.getActionMasked()) {
 
-  View.OnTouchListener dragListener = (v, event) -> {
-    switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN: {
+                startX[0] = (int) event.getRawX();
+                lastY[0] = (int) event.getRawY();
+                isDragging[0] = false;
 
-      case MotionEvent.ACTION_OUTSIDE:
-        lastTouchTIme = System.currentTimeMillis();
-        break;
+                lastTouchTIme = System.currentTimeMillis();
+                return true;
+            }
 
-      case MotionEvent.ACTION_DOWN: {
-        xx.set((int) event.getRawX());
-        yy.set((int) event.getRawY());
+            case MotionEvent.ACTION_MOVE: {
+                int currentX = (int) event.getRawX();
+                int currentY = (int) event.getRawY();
 
-        oldXx.set(miniViewParams.x);
-        oldYy.set(miniViewParams.y);
+                int totalDx = currentX - startX[0];
+                int dy = currentY - lastY[0];
 
-        isDragging[0] = false;
+                if (!isDragging[0]
+                        && Math.abs(totalDx) > touchSlop * 2
+                        && Math.abs(totalDx) > Math.abs(currentY - lastY[0])) {
 
-        lastTouchTIme = System.currentTimeMillis();
+                    if (totalDx > 0) {
+                        clientController.handleAction(
+                            "changeToSmall",
+                            null,
+                            0
+                        );
+                    }
 
-        return true;
-      }
+                    return true;
+                }
 
-      case MotionEvent.ACTION_MOVE: {
-        int dx = (int) event.getRawX() - xx.get();
-        int dy = (int) event.getRawY() - yy.get();
+                if (!isDragging[0]
+                        && Math.abs(dy) > touchSlop) {
+                    isDragging[0] = true;
+                }
 
-        if (!isDragging[0]
-            && (Math.abs(dx) > touchSlop
-            || Math.abs(dy) > touchSlop)) {
+                if (isDragging[0]) {
+                    miniViewParams.x = 0;
+                    miniViewParams.y += dy;
 
-          isDragging[0] = true;
+                    int screenHeight = v.getResources()
+                        .getDisplayMetrics()
+                        .heightPixels;
+
+                    int viewHeight = miniView.getRoot().getHeight();
+
+                    miniViewParams.y = Math.max(
+                        0,
+                        Math.min(
+                            miniViewParams.y,
+                            screenHeight - viewHeight
+                        )
+                    );
+
+                    device.miniY = miniViewParams.y;
+
+                    AppData.windowManager.updateViewLayout(
+                        miniView.getRoot(),
+                        miniViewParams
+                    );
+
+                    lastY[0] = currentY;
+                    lastTouchTIme = System.currentTimeMillis();
+                }
+
+                return true;
+            }
+
+	    case MotionEvent.ACTION_UP: {
+	        int dx = (int) event.getRawX() - startX[0];
+
+	        if (dx > touchSlop * 2) {
+	            clientController.handleAction(
+	                "changeToSmall",
+	                null,
+	                0
+	            );
+	        }
+
+	        isDragging[0] = false;
+	        lastTouchTIme = System.currentTimeMillis();
+
+	        return true;
+	    }
+
+            case MotionEvent.ACTION_CANCEL: {
+                isDragging[0] = false;
+                return true;
+            }
         }
 
-        if (isDragging[0]) {
-          miniViewParams.x = oldXx.get() + dx;
-          miniViewParams.y = oldYy.get() + dy;
-
-          device.miniY = miniViewParams.y;
-
-          AppData.windowManager.updateViewLayout(
-              miniView.getRoot(),
-              miniViewParams
-          );
-
-          lastTouchTIme = System.currentTimeMillis();
-        }
-
         return true;
-      }
+    };
 
-      case MotionEvent.ACTION_UP: {
-
-        if (isDragging[0]) {
-
-          int screenWidth = v.getResources()
-              .getDisplayMetrics()
-              .widthPixels;
-
-          int viewWidth = miniView.getRoot().getWidth();
-
-          int viewCenter = miniViewParams.x
-              + (viewWidth / 2);
-
-          int targetX;
-
-          if (viewCenter < screenWidth / 2) {
-            targetX = 0;
-          } else {
-            targetX = screenWidth - viewWidth;
-          }
-
-          animateMiniViewTo(
-              targetX,
-              miniViewParams.y
-          );
-
-        } else {
-          clientController.handleAction(
-              "changeToSmall",
-              null,
-              0
-          );
-        }
-
-        isDragging[0] = false;
-
-        lastTouchTIme = System.currentTimeMillis();
-
-        return true;
-      }
-
-      case MotionEvent.ACTION_CANCEL: {
-        isDragging[0] = false;
-        return true;
-      }
-    }
-
-    return true;
-  };
-
-  miniView.getRoot().setOnTouchListener(dragListener);
-  miniView.buttonSmall.setOnTouchListener(dragListener);
+    miniView.getRoot().setOnTouchListener(listener);
+    miniView.buttonSmall.setOnTouchListener(listener);
 }
 
   // 设置按钮监听
