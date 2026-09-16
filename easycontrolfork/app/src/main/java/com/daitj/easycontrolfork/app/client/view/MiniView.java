@@ -27,6 +27,7 @@ public class MiniView {
   private ClientController clientController;
   private Thread timeoutListenerThread;
   private long lastTouchTIme = 0;
+  private boolean isAdded = false;
 
   // 迷你悬浮窗
   private final ModuleMiniViewBinding miniView = ModuleMiniViewBinding.inflate(LayoutInflater.from(AppData.applicationContext));
@@ -34,66 +35,114 @@ public class MiniView {
     WindowManager.LayoutParams.WRAP_CONTENT,
     WindowManager.LayoutParams.WRAP_CONTENT,
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
-    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
     PixelFormat.TRANSLUCENT
   );
 
   public MiniView(String uuid) {
-    device = Client.getDevice(uuid);
-    clientController = Client.getClientController(uuid);
-    if (device == null || clientController == null) return;
-    miniViewParams.gravity = Gravity.START | Gravity.TOP;
-    miniViewParams.x = 0;
-    // 设置监听控制
-    setBarListener();
+      device = Client.getDevice(uuid);
+      clientController = Client.getClientController(uuid);
+      if (device == null || clientController == null) return;
+      miniViewParams.gravity = Gravity.START | Gravity.TOP;
+      miniViewParams.x = 0;
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+          miniViewParams.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+      }
+
+      // 设置监听控制
+      setBarListener();
+
+      miniView.getRoot().addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+          if (!isAdded) return;
+
+          int screenHeight = v.getResources().getDisplayMetrics().heightPixels;
+          int viewHeight = v.getHeight();
+          int clampedY = Math.max(0, Math.min(miniViewParams.y, screenHeight - viewHeight));
+
+          if (miniViewParams.y != clampedY) {
+              miniViewParams.y = clampedY;
+              device.miniY = clampedY;
+              
+              try {
+                  AppData.windowManager.updateViewLayout(miniView.getRoot(), miniViewParams);
+              } catch (Exception ignored) {}
+          }
+      });
+
   }
 
-    public void show(ByteBuffer byteBuffer) {
-        if (device == null || clientController == null) return;
+  public void show(ByteBuffer byteBuffer) {
+      if (device == null || clientController == null) return;
 
-        miniViewParams.y = device.miniY;
+      View root = miniView.getRoot();
 
-        miniView.getRoot().setAlpha(0f);
+      root.animate().cancel();
 
-        AppData.windowManager.addView(
-            miniView.getRoot(),
-            miniViewParams
-        );
+      if (!isAdded) {
+          miniViewParams.y = device.miniY;
 
-        miniView.getRoot().animate()
-            .alpha(1f)
-            .setDuration(250)
-            .start();
+          root.setAlpha(0f);
 
-        // 超时检测
-        if (device.miniTimeoutOnRunning && byteBuffer != null) {
-            lastTouchTIme = System.currentTimeMillis();
-            timeoutListenerThread = new Thread(
-                () -> timeoutListener(new String(byteBuffer.array()))
-            );
-            timeoutListenerThread.start();
-        }
-    }
+          try {
+              AppData.windowManager.addView(root, miniViewParams);
+              isAdded = true;
+          } catch (Exception ignored) {
+              return;
+          }
+      }
 
-    public void hide() {
-        if (device == null || clientController == null) return;
+      root.animate()
+          .alpha(1f)
+          .setDuration(250)
+          .start();
 
-        miniView.getRoot().animate()
-            .alpha(0f)
-            .setDuration(250)
-            .withEndAction(() -> {
-                try {
-                    AppData.windowManager.removeView(miniView.getRoot());
+      // 超时检测
+      if (device.miniTimeoutOnRunning && byteBuffer != null) {
+          lastTouchTIme = System.currentTimeMillis();
 
-                    if (timeoutListenerThread != null) {
-                        timeoutListenerThread.interrupt();
-                        timeoutListenerThread = null;
-                    }
-                } catch (Exception ignored) {
-                }
-            })
-            .start();
-    }
+          if (timeoutListenerThread != null) {
+              timeoutListenerThread.interrupt();
+          }
+
+          timeoutListenerThread = new Thread(
+              () -> timeoutListener(new String(byteBuffer.array()))
+          );
+
+          timeoutListenerThread.start();
+      }
+  }
+
+  public void hide() {
+      if (device == null || clientController == null) return;
+
+      View root = miniView.getRoot();
+
+      root.animate().cancel();
+
+      if (!isAdded) {
+          return;
+      }
+
+      root.animate()
+          .alpha(0f)
+          .setDuration(250)
+          .withEndAction(() -> {
+              if (!isAdded) return;
+
+              try {
+                  AppData.windowManager.removeView(root);
+                  isAdded = false;
+              } catch (Exception ignored) {
+              }
+
+              if (timeoutListenerThread != null) {
+                  timeoutListenerThread.interrupt();
+                  timeoutListenerThread = null;
+              }
+          })
+          .start();
+  }
 
   // 超时监听
   private void timeoutListener(String timeoutAction) {

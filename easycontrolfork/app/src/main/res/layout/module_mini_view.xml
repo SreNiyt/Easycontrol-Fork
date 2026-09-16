@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="40dp"
+    android:id="@+id/mini_control_container"
+    android:layout_width="30dp"
     android:layout_height="75dp"
     android:layout_gravity="center_vertical"
-    android:background="@drawable/sidebar_handle"
+    android:background="@android:color/transparent"
+    android:clickable="true"
+    android:focusable="true"
     android:clipChildren="false"
     android:clipToPadding="false">
 
     <View
         android:id="@+id/mini_control_layout"
-        android:layout_width="8dp"
+        android:layout_width="7dp"
         android:layout_height="75dp"
+        android:layout_gravity="center_vertical"
         android:background="@drawable/sidebar_handle" />
 
 </FrameLayout>
