@@ -9,8 +9,6 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.animation.ValueAnimator;
-import android.view.animation.DecelerateInterpolator;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,76 +29,83 @@ public class MiniView {
   private long lastTouchTIme = 0;
 
   // 迷你悬浮窗
-  private final ModuleMiniViewBinding miniView = ModuleMiniViewBinding.inflate(LayoutInflater.from(AppData.applicationContext));
-  private final WindowManager.LayoutParams miniViewParams = new WindowManager.LayoutParams(
-    WindowManager.LayoutParams.WRAP_CONTENT,
-    WindowManager.LayoutParams.WRAP_CONTENT,
-    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
-    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-    PixelFormat.TRANSLUCENT
-  );
+  private final ModuleMiniViewBinding miniView =
+      ModuleMiniViewBinding.inflate(
+          LayoutInflater.from(AppData.applicationContext)
+      );
+
+  private final WindowManager.LayoutParams miniViewParams =
+      new WindowManager.LayoutParams(
+          WindowManager.LayoutParams.WRAP_CONTENT,
+          WindowManager.LayoutParams.WRAP_CONTENT,
+          Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+              ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+              : WindowManager.LayoutParams.TYPE_PHONE,
+          WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+              | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+              | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+              | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+          PixelFormat.TRANSLUCENT
+      );
 
   public MiniView(String uuid) {
     device = Client.getDevice(uuid);
     clientController = Client.getClientController(uuid);
+
     if (device == null || clientController == null) return;
+
     miniViewParams.gravity = Gravity.START | Gravity.TOP;
-    miniViewParams.x = 0;
-    // 设置监听控制
+
     setBarListener();
     setButtonListener();
   }
 
-private void animateMiniViewTo(int targetX, int targetY) {
-  int startX = miniViewParams.x;
-  int startY = miniViewParams.y;
-
-  ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
-
-  animator.setDuration(500);
-  animator.setInterpolator(new DecelerateInterpolator());
-
-  animator.addUpdateListener(animation -> {
-    float progress = (float) animation.getAnimatedValue();
-
-    miniViewParams.x = startX
-        + (int) ((targetX - startX) * progress);
-
-    miniViewParams.y = startY
-        + (int) ((targetY - startY) * progress);
-
-    device.miniY = miniViewParams.y;
-
-    AppData.windowManager.updateViewLayout(
-        miniView.getRoot(),
-        miniViewParams
-    );
-  });
-
-  animator.start();
-}
-
-
   public void show(ByteBuffer byteBuffer) {
     if (device == null || clientController == null) return;
+
     miniViewParams.y = device.miniY;
-    // 显示
-    ViewTools.viewAnim(miniView.getRoot(), true, PublicTools.dp2px(-40f), 0, (isStart -> {
-      if (isStart) AppData.windowManager.addView(miniView.getRoot(), miniViewParams);
-    }));
+
+    ViewTools.viewAnim(
+        miniView.getRoot(),
+        true,
+        PublicTools.dp2px(-40f),
+        0,
+        (isStart -> {
+          if (isStart) {
+            AppData.windowManager.addView(
+                miniView.getRoot(),
+                miniViewParams
+            );
+          }
+        })
+    );
+
     // 超时检测
     if (device.miniTimeoutOnRunning && byteBuffer != null) {
       lastTouchTIme = System.currentTimeMillis();
-      timeoutListenerThread = new Thread(() -> timeoutListener(new String(byteBuffer.array())));
+
+      timeoutListenerThread = new Thread(
+          () -> timeoutListener(
+              new String(byteBuffer.array())
+          )
+      );
+
       timeoutListenerThread.start();
     }
   }
 
   public void hide() {
     if (device == null || clientController == null) return;
+
     try {
-      AppData.windowManager.removeView(miniView.getRoot());
-      if (timeoutListenerThread != null) timeoutListenerThread.interrupt();
+      AppData.windowManager.removeView(
+          miniView.getRoot()
+      );
+
+      if (timeoutListenerThread != null) {
+        timeoutListenerThread.interrupt();
+      }
+
     } catch (Exception ignored) {
     }
   }
@@ -109,138 +114,146 @@ private void animateMiniViewTo(int targetX, int targetY) {
   private void timeoutListener(String timeoutAction) {
     try {
       long now;
+
       while (!Thread.interrupted()) {
         Thread.sleep(2);
+
         now = System.currentTimeMillis();
+
         if (now - lastTouchTIme > 5000) {
-          clientController.handleAction( timeoutAction, null, 0);
+          clientController.handleAction(
+              timeoutAction,
+              null,
+              0
+          );
+
           return;
         }
       }
+
     } catch (Exception ignored) {
     }
   }
 
   // 设置监听控制.
-@SuppressLint("ClickableViewAccessibility")
-private void setBarListener() {
-  final int touchSlop = ViewConfiguration.get(
-      AppData.applicationContext
-  ).getScaledTouchSlop();
+  @SuppressLint("ClickableViewAccessibility")
+  private void setBarListener() {
 
-  AtomicInteger xx = new AtomicInteger();
-  AtomicInteger yy = new AtomicInteger();
-  AtomicInteger oldXx = new AtomicInteger();
-  AtomicInteger oldYy = new AtomicInteger();
+    final int touchSlop =
+        ViewConfiguration.get(
+            AppData.applicationContext
+        ).getScaledTouchSlop();
 
-  final boolean[] isDragging = {false};
+    AtomicInteger startY = new AtomicInteger();
+    AtomicInteger oldY = new AtomicInteger();
 
-  View.OnTouchListener dragListener = (v, event) -> {
-    switch (event.getActionMasked()) {
+    final boolean[] isDragging = {false};
 
-      case MotionEvent.ACTION_OUTSIDE:
-        lastTouchTIme = System.currentTimeMillis();
-        break;
+    View.OnTouchListener dragListener = (v, event) -> {
 
-      case MotionEvent.ACTION_DOWN: {
-        xx.set((int) event.getRawX());
-        yy.set((int) event.getRawY());
+      switch (event.getActionMasked()) {
 
-        oldXx.set(miniViewParams.x);
-        oldYy.set(miniViewParams.y);
+        case MotionEvent.ACTION_OUTSIDE:
+          lastTouchTIme = System.currentTimeMillis();
+          break;
 
-        isDragging[0] = false;
+        case MotionEvent.ACTION_DOWN: {
 
-        lastTouchTIme = System.currentTimeMillis();
-
-        return true;
-      }
-
-      case MotionEvent.ACTION_MOVE: {
-        int dx = (int) event.getRawX() - xx.get();
-        int dy = (int) event.getRawY() - yy.get();
-
-        if (!isDragging[0]
-            && (Math.abs(dx) > touchSlop
-            || Math.abs(dy) > touchSlop)) {
-
-          isDragging[0] = true;
-        }
-
-        if (isDragging[0]) {
-          miniViewParams.x = oldXx.get() + dx;
-          miniViewParams.y = oldYy.get() + dy;
-
-          device.miniY = miniViewParams.y;
-
-          AppData.windowManager.updateViewLayout(
-              miniView.getRoot(),
-              miniViewParams
+          startY.set(
+              (int) event.getRawY()
           );
 
-          lastTouchTIme = System.currentTimeMillis();
-        }
-
-        return true;
-      }
-
-      case MotionEvent.ACTION_UP: {
-
-        if (isDragging[0]) {
-
-          int screenWidth = v.getResources()
-              .getDisplayMetrics()
-              .widthPixels;
-
-          int viewWidth = miniView.getRoot().getWidth();
-
-          int viewCenter = miniViewParams.x
-              + (viewWidth / 2);
-
-          int targetX;
-
-          if (viewCenter < screenWidth / 2) {
-            targetX = 0;
-          } else {
-            targetX = screenWidth - viewWidth;
-          }
-
-          animateMiniViewTo(
-              targetX,
+          oldY.set(
               miniViewParams.y
           );
 
-        } else {
-          clientController.handleAction(
-              "changeToSmall",
-              null,
-              0
-          );
+          isDragging[0] = false;
+
+          lastTouchTIme =
+              System.currentTimeMillis();
+
+          return true;
         }
 
-        isDragging[0] = false;
+        case MotionEvent.ACTION_MOVE: {
 
-        lastTouchTIme = System.currentTimeMillis();
+          int dy =
+              (int) event.getRawY()
+                  - startY.get();
 
-        return true;
+          if (!isDragging[0]
+              && Math.abs(dy) > touchSlop) {
+
+            isDragging[0] = true;
+          }
+
+          if (isDragging[0]) {
+
+            miniViewParams.y =
+                oldY.get() + dy;
+
+            device.miniY =
+                miniViewParams.y;
+
+            AppData.windowManager.updateViewLayout(
+                miniView.getRoot(),
+                miniViewParams
+            );
+
+            lastTouchTIme =
+                System.currentTimeMillis();
+          }
+
+          return true;
+        }
+
+        case MotionEvent.ACTION_UP: {
+
+          if (!isDragging[0]) {
+
+            clientController.handleAction(
+                "changeToSmall",
+                null,
+                0
+            );
+          }
+
+          isDragging[0] = false;
+
+          lastTouchTIme =
+              System.currentTimeMillis();
+
+          return true;
+        }
+
+        case MotionEvent.ACTION_CANCEL: {
+
+          isDragging[0] = false;
+
+          return true;
+        }
       }
 
-      case MotionEvent.ACTION_CANCEL: {
-        isDragging[0] = false;
-        return true;
-      }
-    }
+      return true;
+    };
 
-    return true;
-  };
+    miniView.getRoot()
+        .setOnTouchListener(dragListener);
 
-  miniView.getRoot().setOnTouchListener(dragListener);
-  miniView.buttonSmall.setOnTouchListener(dragListener);
-}
+    miniView.buttonSmall
+        .setOnTouchListener(dragListener);
+  }
 
   // 设置按钮监听
   private void setButtonListener() {
-    miniView.buttonSmall.setOnClickListener(v -> clientController.handleAction( "changeToSmall", null, 0));
+    miniView.buttonSmall.setOnClickListener(
+        v -> clientController.handleAction(
+            "changeToSmall",
+            null,
+            0
+        )
+    );
   }
-
 }
+
+
