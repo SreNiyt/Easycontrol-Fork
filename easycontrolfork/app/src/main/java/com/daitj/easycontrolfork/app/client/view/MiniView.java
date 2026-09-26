@@ -27,6 +27,7 @@ public class MiniView {
   private ClientController clientController;
   private Thread timeoutListenerThread;
   private long lastTouchTIme = 0;
+  private boolean isShow = false;
 
   // 迷你悬浮窗
   private final ModuleMiniViewBinding miniView =
@@ -61,52 +62,38 @@ public class MiniView {
   }
 
   public void show(ByteBuffer byteBuffer) {
-    if (device == null || clientController == null) return;
+    if (device == null || clientController == null || isShow) return;
 
     miniViewParams.y = device.miniY;
 
-    ViewTools.viewAnim(
-        miniView.getRoot(),
-        true,
-        PublicTools.dp2px(-40f),
-        0,
-        (isStart -> {
-          if (isStart) {
-            AppData.windowManager.addView(
-                miniView.getRoot(),
-                miniViewParams
-            );
+    ViewTools.viewAnim(miniView.getRoot(), true, PublicTools.dp2px(-40f), 0, (isStart -> {
+          if (isStart && miniView.getRoot().getParent() == null) {
+            try {
+                AppData.windowManager.addView(miniView.getRoot(), miniViewParams);
+            } catch (Exception ignored) {}
           }
         })
     );
 
-    // 超时检测
+    isShow = true;
+
     if (device.miniTimeoutOnRunning && byteBuffer != null) {
       lastTouchTIme = System.currentTimeMillis();
-
-      timeoutListenerThread = new Thread(
-          () -> timeoutListener(
-              new String(byteBuffer.array())
-          )
-      );
-
+      timeoutListenerThread = new Thread(() -> timeoutListener(new String(byteBuffer.array())));
       timeoutListenerThread.start();
     }
   }
 
   public void hide() {
-    if (device == null || clientController == null) return;
-
+    if (device == null || clientController == null || !isShow) return;
     try {
-      AppData.windowManager.removeView(
-          miniView.getRoot()
-      );
-
-      if (timeoutListenerThread != null) {
-        timeoutListenerThread.interrupt();
+      if (miniView.getRoot().getParent() != null) {
+          AppData.windowManager.removeView(miniView.getRoot());
       }
-
+      if (timeoutListenerThread != null) timeoutListenerThread.interrupt();
     } catch (Exception ignored) {
+    } finally {
+        isShow = false;
     }
   }
 

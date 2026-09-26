@@ -69,34 +69,48 @@ public class SmallView extends ViewOutlineProvider {
   }
 
   public void show() {
-    if (device == null || clientController == null) return;
-    // 初始化
+    if (device == null || clientController == null || isShow) return;
+    
     smallView.barView.setVisibility(View.GONE);
     smallViewParams.x = device.smallX;
     smallViewParams.y = device.smallY;
     updateMaxSize();
+    
     if (!Objects.equals(device.startApp, "")) {
       smallView.buttonHome.setVisibility(View.GONE);
       smallView.buttonSwitch.setVisibility(View.GONE);
       smallView.buttonApp.setVisibility(View.GONE);
       smallView.textureViewLayout.setPadding(0, PublicTools.dp2px(25f), 0, 0);
     }
-    // 自定义分辨率(2:1)
-    if (!device.customResolutionOnConnect && device.changeResolutionOnRunning) clientController.handleAction("writeByteBuffer", ControlPacket.createChangeResolutionEvent(0.5f), 0);
-    // 显示
-    AppData.windowManager.addView(smallView.getRoot(), smallViewParams);
-    smallView.textureViewLayout.addView(clientController.getTextureView(), 0);
+    
+    if (!device.customResolutionOnConnect && device.changeResolutionOnRunning) {
+        clientController.handleAction("writeByteBuffer", ControlPacket.createChangeResolutionEvent(0.5f), 0);
+    }
+    
+    if (smallView.getRoot().getParent() == null) {
+        AppData.windowManager.addView(smallView.getRoot(), smallViewParams);
+    }
+    
+    View textureView = clientController.getTextureView();
+    if (textureView.getParent() != null) {
+        ((ViewGroup) textureView.getParent()).removeView(textureView);
+    }
+    smallView.textureViewLayout.addView(textureView, 0);
+    
     ViewTools.viewAnim(smallView.getRoot(), true, 0, PublicTools.dp2px(40f), null);
     isShow = true;
   }
 
   public void hide() {
-    if (device == null || clientController == null) return;
+    if (device == null || clientController == null || !isShow) return;
     try {
       smallView.textureViewLayout.removeView(clientController.getTextureView());
-      AppData.windowManager.removeView(smallView.getRoot());
-      isShow = false;
+      if (smallView.getRoot().getParent() != null) {
+          AppData.windowManager.removeView(smallView.getRoot());
+      }
     } catch (Exception ignored) {
+    } finally {
+      isShow = false;
     }
   }
 

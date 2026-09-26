@@ -191,55 +191,45 @@ public class ClientController implements TextureView.SurfaceTextureListener {
     AppData.mainActivity.startActivity(intent);
   }
 
-private synchronized void changeToSmall() {
+  private synchronized void changeToSmall() {
 
-  if (noFloatPermission()) {
-    PublicTools.logToast(
-        "controller",
-        AppData.applicationContext.getString(R.string.toast_float_per),
-        true
-    );
-    changeToFull();
-  } else {
-    if (smallView == null) smallView = new SmallView(device.uuid);
+    if (noFloatPermission()) {
+      PublicTools.logToast(
+          "controller",
+          AppData.applicationContext.getString(R.string.toast_float_per),
+          true
+      );
+      changeToFull();
+    } else {
+      if (smallView == null) smallView = new SmallView(device.uuid);
 
-    AppData.uiHandler.post(() -> {
-
-        smallView.show();
-
-        if (miniView != null)
-            miniView.hide();
-
-        if (fullView != null)
-            fullView.hide();
-    });
-    updateSite(null);
+      AppData.uiHandler.post(() -> {
+          if (miniView != null) miniView.hide();
+          if (fullView != null) fullView.hide();
+          smallView.show();
+      });
+      updateSite(null);
+    }
   }
-}
 
-private synchronized void changeToMini(ByteBuffer byteBuffer) {
+  private synchronized void changeToMini(ByteBuffer byteBuffer) {
 
-  if (noFloatPermission()) {
-    PublicTools.logToast(
-        "controller",
-        AppData.applicationContext.getString(R.string.toast_float_per),
-        true
-    );
-    changeToFull();
-  } else {
-    if (miniView == null) miniView = new MiniView(device.uuid);
-    AppData.uiHandler.post(() -> {
-
-        miniView.show(byteBuffer);
-
-        if (smallView != null)
-            smallView.hide();
-
-        if (fullView != null)
-            fullView.hide();
-    });
+    if (noFloatPermission()) {
+      PublicTools.logToast(
+          "controller",
+          AppData.applicationContext.getString(R.string.toast_float_per),
+          true
+      );
+      changeToFull();
+    } else {
+      if (miniView == null) miniView = new MiniView(device.uuid);
+      AppData.uiHandler.post(() -> {
+          if (smallView != null) smallView.hide();
+          if (fullView != null) fullView.hide();
+          miniView.show(byteBuffer);
+      });
+    }
   }
-}
 
   // 检查悬浮窗权限
   private boolean noFloatPermission() {
