@@ -39,6 +39,7 @@ public final class Device {
   public static Pair<Integer, Integer> videoSize;
   private static boolean needReset = false;
   private static int oldScreenOffTimeout = 60000;
+  private static long gestureDownTime = 0;
 
   public static void init() throws Exception {
     // 若启动单个应用则需创建虚拟Dispaly
@@ -202,69 +203,71 @@ public final class Device {
   }
 
   private static final PointersState pointersState = new PointersState();
-
   public static void touchEvent(
-      int action,
-      Float x,
-      Float y,
-      int pointerId,
-      int offsetTime) {
+          int action,
+          float x, 
+          float y, 
+          int pointerId,
+          int offsetTime) {
 
-    Pointer pointer = pointersState.get(pointerId);
+      Pointer pointer = pointersState.get(pointerId);
+      long currentTime = SystemClock.uptimeMillis();
 
-    if (pointer == null) {
-        if (action != MotionEvent.ACTION_DOWN) return;
+      if (pointer == null) {
+          if (action != MotionEvent.ACTION_DOWN) return;
 
-        pointer = pointersState.newPointer(
-          pointerId,
-          SystemClock.uptimeMillis() - 50);
-
-      if (pointer == null) return;
-    }
-
-    pointer.x = x * displayInfo.width;
-    pointer.y = y * displayInfo.height;
-
-    int pointerIndex = pointersState.getPointerIndex(pointer.id);
-    int pointerCount = pointersState.update();
-
-    if (pointerIndex < 0 || pointerIndex >= pointerCount) return;
-
-    if (action == MotionEvent.ACTION_UP) {
-      if (pointerCount > 1) {
-        action = MotionEvent.ACTION_POINTER_UP
-            | (pointerIndex << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+          pointer = pointersState.newPointer(pointerId, currentTime);
+          if (pointer == null) return;
       }
-    } else if (action == MotionEvent.ACTION_DOWN) {
-      if (pointerCount > 1) {
-        action = MotionEvent.ACTION_POINTER_DOWN
-            | (pointerIndex << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+
+      long eventTime = pointer.downTime + offsetTime;
+      if (eventTime > currentTime) {
+          pointer.downTime -= (eventTime - currentTime);
+          eventTime = currentTime;
       }
-    }
 
-    MotionEvent event = MotionEvent.obtain(
-        pointer.downTime,
-        pointer.downTime + offsetTime,
-        action,
-        pointerCount,
-        pointersState.pointerProperties,
-        pointersState.pointerCoords,
-        0,
-        0,
-        1f,
-        1f,
-        0,
-        0,
-        InputDevice.SOURCE_TOUCHSCREEN,
-        0);
+      pointer.x = x * displayInfo.width;
+      pointer.y = y * displayInfo.height;
+      
+      int pointerIndex = pointersState.getPointerIndex(pointer.id);
+      int pointerCount = pointersState.update();
+      
+      if (pointerIndex < 0 || pointerIndex >= pointerCount) return;
+      
+      if (action == MotionEvent.ACTION_UP) {
+          if (pointerCount > 1) {
+              action = MotionEvent.ACTION_POINTER_UP | (pointerIndex << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+          }
+      } else if (action == MotionEvent.ACTION_DOWN) {
+          if (pointerCount > 1) {
+              action = MotionEvent.ACTION_POINTER_DOWN | (pointerIndex << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+          } else {
+              gestureDownTime = pointer.downTime;
+          }
+      }
 
-    injectEvent(event);
+      MotionEvent event = MotionEvent.obtain(
+              gestureDownTime == 0 ? pointer.downTime : gestureDownTime,
+              eventTime,
+              action,
+              pointerCount,
+              pointersState.pointerProperties,
+              pointersState.pointerCoords,
+              0,
+              0,
+              1f,
+              1f,
+              0,
+              0,
+              InputDevice.SOURCE_TOUCHSCREEN,
+              0);
 
-    if (action == MotionEvent.ACTION_UP
-        || (action & MotionEvent.ACTION_MASK)
-            == MotionEvent.ACTION_POINTER_UP) {
-      pointersState.remove(pointerId);
-    }
+      injectEvent(event);
+      event.recycle();
+      
+      if (action == MotionEvent.ACTION_UP || (action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_POINTER_UP) {
+          pointersState.remove(pointerId);
+      }
   }
 
   public static void keyEvent(int keyCode, int meta) {
