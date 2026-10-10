@@ -12,69 +12,77 @@ import com.daitj.easycontrolfork.server.entity.Device;
 
 public final class ControlPacket {
 
-public static void sendVideoEvent(long pts, ByteBuffer data) throws IOException {
-    if (!data.hasRemaining()) return;
-
-    Server.writeVideoFrame(pts, data);
-}
-
-  public static void sendAudioEvent(ByteBuffer data) throws IOException {
-    int size = data.remaining();
-    if (size < 0) return;
-    ByteBuffer byteBuffer = ByteBuffer.allocate(5 + size);
-    byteBuffer.put((byte) 1);
-    byteBuffer.putInt(size);
-    byteBuffer.put(data);
-    byteBuffer.flip();
-    Server.writeMain(byteBuffer);
-  }
-
-  public static void sendClipboardEvent(String newClipboardText) {
-    byte[] tmpTextByte = newClipboardText.getBytes(StandardCharsets.UTF_8);
-    if (tmpTextByte.length == 0 || tmpTextByte.length > 5000) return;
-    ByteBuffer byteBuffer = ByteBuffer.allocate(5 + tmpTextByte.length);
-    byteBuffer.put((byte) 2);
-    byteBuffer.putInt(tmpTextByte.length);
-    byteBuffer.put(tmpTextByte);
-    byteBuffer.flip();
-    try {
-      Server.writeMain(byteBuffer);
-    } catch (IOException e) {
-      Server.errorClose(e);
+    private ControlPacket() {
+        throw new AssertionError("Utility class");
     }
-  }
 
-  public static void sendVideoSizeEvent() throws IOException {
-    ByteBuffer byteBuffer = ByteBuffer.allocate(9);
-    byteBuffer.put((byte) 3);
-    byteBuffer.putInt(Device.videoSize.first);
-    byteBuffer.putInt(Device.videoSize.second);
-    byteBuffer.flip();
-    Server.writeMain(byteBuffer);
-  }
+    public static void sendVideoEvent(long pts, ByteBuffer data) throws IOException {
+        if (!data.hasRemaining()) return;
+        Server.writeVideoFrame(pts, data);
+    }
 
-  public static void handleTouchEvent() throws IOException {
-    int action = Server.mainInputStream.readByte();
-    int pointerId = Server.mainInputStream.readByte();
-    float x = Server.mainInputStream.readFloat();
-    float y = Server.mainInputStream.readFloat();
-    int offsetTime = Server.mainInputStream.readInt();
-    Device.touchEvent(action, x, y, pointerId, offsetTime);
-  }
+    public static void sendAudioEvent(ByteBuffer data) throws IOException {
+        int size = data.remaining();
+        if (size <= 0) return;
 
-  public static void handleKeyEvent() throws IOException {
-    int keyCode = Server.mainInputStream.readInt();
-    int meta = Server.mainInputStream.readInt();
-    Device.keyEvent(keyCode, meta);
-  }
+        ByteBuffer byteBuffer = ByteBuffer.allocate(5 + size);
+        byteBuffer.put((byte) 1);
+        byteBuffer.putInt(size);
+        byteBuffer.put(data);
+        byteBuffer.flip();
+        Server.writeMain(byteBuffer);
+    }
 
-  public static void handleClipboardEvent() throws IOException {
-    int size = Server.mainInputStream.readInt();
-    byte[] textBytes = new byte[size];
-    Server.mainInputStream.readFully(textBytes);
-    String text = new String(textBytes, StandardCharsets.UTF_8);
-    Device.setClipboardText(text);
-  }
+    public static void sendClipboardEvent(String newClipboardText) {
+        byte[] textBytes = newClipboardText.getBytes(StandardCharsets.UTF_8);
+        if (textBytes.length == 0 || textBytes.length > 5000) return;
 
+        ByteBuffer byteBuffer = ByteBuffer.allocate(5 + textBytes.length);
+        byteBuffer.put((byte) 2);
+        byteBuffer.putInt(textBytes.length);
+        byteBuffer.put(textBytes);
+        byteBuffer.flip();
+        
+        try {
+            Server.writeMain(byteBuffer);
+        } catch (IOException e) {
+            Server.errorClose(e);
+        }
+    }
+
+    public static void sendVideoSizeEvent() throws IOException {
+        ByteBuffer byteBuffer = ByteBuffer.allocate(9);
+        byteBuffer.put((byte) 3);
+        byteBuffer.putInt(Device.videoSize.first);
+        byteBuffer.putInt(Device.videoSize.second);
+        byteBuffer.flip();
+        Server.writeMain(byteBuffer);
+    }
+
+    public static void handleTouchEvent() throws IOException {
+        int action = Server.mainInputStream.readByte();
+        int pointerId = Server.mainInputStream.readByte();
+        float x = Server.mainInputStream.readFloat();
+        float y = Server.mainInputStream.readFloat();
+        int offsetTime = Server.mainInputStream.readInt();
+
+        Device.touchEvent(action, x, y, pointerId, offsetTime);
+    }
+
+    public static void handleKeyEvent() throws IOException {
+        int keyCode = Server.mainInputStream.readInt();
+        int meta = Server.mainInputStream.readInt();
+        Device.keyEvent(keyCode, meta);
+    }
+
+    public static void handleClipboardEvent() throws IOException {
+        int size = Server.mainInputStream.readInt();
+        if (size <= 0 || size > 5000) return; 
+
+        byte[] textBytes = new byte[size];
+        Server.mainInputStream.readFully(textBytes);
+        String text = new String(textBytes, StandardCharsets.UTF_8);
+        Device.setClipboardText(text);
+    }
 }
 

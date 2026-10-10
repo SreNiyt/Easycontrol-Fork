@@ -4,7 +4,6 @@
 package com.daitj.easycontrolfork.server.wrappers;
 
 import android.view.InputEvent;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -15,14 +14,22 @@ public final class InputManager {
   private static Object manager;
   private static Method injectInputEventMethod;
   private static Method setDisplayIdMethod;
+  private static boolean initialized = false;
+
+  private InputManager() {
+  }
 
   public static void init(Object m) throws NoSuchMethodException {
     manager = m;
     injectInputEventMethod = manager.getClass().getMethod("injectInputEvent", InputEvent.class, int.class);
+    
     try {
       setDisplayIdMethod = InputEvent.class.getMethod("setDisplayId", int.class);
-    } catch (Exception ignored) {
+    } catch (NoSuchMethodException e) {
+      System.err.println("InputManager: setDisplayId method not found. Ignored for older API compatibility.");
     }
+    
+    initialized = true;
   }
 
   public static void setDisplayId(InputEvent inputEvent, int displayId) throws InvocationTargetException, IllegalAccessException {
@@ -30,7 +37,13 @@ public final class InputManager {
     setDisplayIdMethod.invoke(inputEvent, displayId);
   }
 
-  public static void injectInputEvent(InputEvent inputEvent, int mode) throws InvocationTargetException, IllegalAccessException {
-    injectInputEventMethod.invoke(manager, inputEvent, mode);
+  public static boolean injectInputEvent(InputEvent inputEvent, int mode) throws InvocationTargetException, IllegalAccessException {
+    if (!initialized) {
+      throw new IllegalStateException("InputManager must be initialized before injecting events.");
+    }
+    
+    Object result = injectInputEventMethod.invoke(manager, inputEvent, mode);
+    return result != null && (Boolean) result;
   }
 }
+
