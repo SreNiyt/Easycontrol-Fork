@@ -49,7 +49,7 @@ public class DeviceDetailActivity extends Activity {
   }
 
   // 绘制UI
-  private static final String[] maxSizeList = new String[]{"2560", "1920", "1600", "1280", "1024", "800"};
+  private static final String[] maxSizeList = new String[]{"2560", "1920", "1600", "1280", "1024", "800", "720"};
   private static final String[] maxFpsList = new String[]{"90", "60", "40", "30", "20", "10"};
   private static final String[] maxVideoBitList = new String[]{"12", "8", "4", "2", "1"};
 
