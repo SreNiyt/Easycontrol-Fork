@@ -56,12 +56,12 @@ public final class AudioEncode {
       ByteBuffer buffer = encedec.getInputBuffer(inIndex);
       if (buffer == null) return;
       int size = Math.min(buffer.remaining(), AudioCapture.AUDIO_PACKET_SIZE);
-      audioCapture.read(buffer, size);
-      encedec.queueInputBuffer(inIndex, 0, size, 0, 0);
+      int read = audioCapture.read(buffer, size);
+      if (read < 0) read = 0;
+      encedec.queueInputBuffer(inIndex, 0, read, System.nanoTime() / 1000, 0);
     } catch (IllegalStateException ignored) {
     }
   }
-
   private static final MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
 
   public static void encodeOut() throws IOException {
