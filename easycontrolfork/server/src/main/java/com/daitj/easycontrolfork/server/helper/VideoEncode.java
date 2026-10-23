@@ -38,11 +38,11 @@ public final class VideoEncode {
         byteBuffer.putInt(Device.videoSize.second);
         byteBuffer.flip();
         Server.writeVideo(byteBuffer);
-        
-        display = SurfaceControl.createDisplay("easycontrol", 
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.R || 
+
+        display = SurfaceControl.createDisplay("easycontrol",
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
                 (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && !"S".equals(Build.VERSION.CODENAME)));
-        
+
         createEncoderFormat();
         startEncode();
     }
@@ -50,6 +50,8 @@ public final class VideoEncode {
     private static void createEncoderFormat() throws IOException {
         String codecMime = useH265 ? MediaFormat.MIMETYPE_VIDEO_HEVC : MediaFormat.MIMETYPE_VIDEO_AVC;
         encoder = MediaCodec.createEncoderByType(codecMime);
+        Log.i(TAG, "Using encoder: " + encoder.getName());
+
         encoderFormat = new MediaFormat();
         encoderFormat.setString(MediaFormat.KEY_MIME, codecMime);
         encoderFormat.setInteger(MediaFormat.KEY_BIT_RATE, Options.maxVideoBit);
@@ -58,7 +60,10 @@ public final class VideoEncode {
         encoderFormat.setFloat("max-fps-to-encoder", Options.maxFps);
         encoderFormat.setInteger(MediaFormat.KEY_OPERATING_RATE, Options.maxFps);
         encoderFormat.setInteger(MediaFormat.KEY_PRIORITY, 0);
-        encoderFormat.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 50_000);
+        encoderFormat.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 100_000);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            encoderFormat.setInteger(MediaFormat.KEY_MAX_B_FRAMES, 0);
+        }
         encoderFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
     }
 
@@ -67,7 +72,7 @@ public final class VideoEncode {
         encoderFormat.setInteger(MediaFormat.KEY_WIDTH, Device.videoSize.first);
         encoderFormat.setInteger(MediaFormat.KEY_HEIGHT, Device.videoSize.second);
         encoder.configure(encoderFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-        
+
         surface = encoder.createInputSurface();
         setDisplaySurface(display, surface);
         encoder.start();
@@ -88,8 +93,8 @@ public final class VideoEncode {
         SurfaceControl.openTransaction();
         try {
             SurfaceControl.setDisplaySurface(display, surface);
-            SurfaceControl.setDisplayProjection(display, 0, 
-                    new Rect(0, 0, Device.displayInfo.width, Device.displayInfo.height), 
+            SurfaceControl.setDisplayProjection(display, 0,
+                    new Rect(0, 0, Device.displayInfo.width, Device.displayInfo.height),
                     new Rect(0, 0, Device.videoSize.first, Device.videoSize.second));
             SurfaceControl.setDisplayLayerStack(display, Device.displayInfo.layerStack);
         } finally {
@@ -102,14 +107,18 @@ public final class VideoEncode {
 
         try {
             int outIndex = encoder.dequeueOutputBuffer(bufferInfo, 10_000);
-            
+
             if (outIndex >= 0) {
-                ByteBuffer buffer = encoder.getOutputBuffer(outIndex);
-                if (buffer != null) {
-                    long pts = bufferInfo.presentationTimeUs;
-                    ControlPacket.sendVideoEvent(pts, buffer);
+                try {
+                    ByteBuffer buffer = encoder.getOutputBuffer(outIndex);
+                    if (buffer != null && bufferInfo.size > 0) {
+                        buffer.position(bufferInfo.offset);
+                        buffer.limit(bufferInfo.offset + bufferInfo.size);
+                        ControlPacket.sendVideoEvent(bufferInfo.presentationTimeUs, buffer);
+                    }
+                } finally {
+                    encoder.releaseOutputBuffer(outIndex, false);
                 }
-                encoder.releaseOutputBuffer(outIndex, false);
             }
         } catch (IllegalStateException e) {
             Log.e(TAG, "Codec in illegal state during dequeueOutputBuffer", e);

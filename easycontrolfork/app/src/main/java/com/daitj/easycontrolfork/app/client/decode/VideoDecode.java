@@ -30,7 +30,7 @@ public class VideoDecode {
         @Override
         public void onOutputBufferAvailable(@NonNull MediaCodec mediaCodec, int outIndex, @NonNull MediaCodec.BufferInfo bufferInfo) {
             try {
-                mediaCodec.releaseOutputBuffer(outIndex, bufferInfo.presentationTimeUs);
+                mediaCodec.releaseOutputBuffer(outIndex, true);
             } catch (IllegalStateException e) {
                 Log.w(TAG, "Failed to release output buffer: codec may be in an invalid state.", e);
             }
@@ -52,21 +52,26 @@ public class VideoDecode {
     }
 
     public void release() {
-        if (decoder != null) {
+        MediaCodec codec = decoder;
+        decoder = null;
+        if (codec != null) {
             try {
-                decoder.stop();
-                decoder.release();
+                codec.stop();
             } catch (Exception e) {
-                Log.w(TAG, "Error during decoder release", e);
-            } finally {
-                decoder = null;
+                Log.w(TAG, "Error stopping decoder", e);
+            }
+            try {
+                codec.release();
+            } catch (Exception e) {
+                Log.w(TAG, "Error releasing decoder", e);
             }
         }
         inputBufferQueue.clear();
     }
 
     public void decodeIn(ByteBuffer data) throws InterruptedException {
-        if (decoder == null) return;
+        MediaCodec codec = decoder;
+        if (codec == null) return;
 
         try {
             long pts = data.getLong();
@@ -78,7 +83,7 @@ public class VideoDecode {
                 return;
             }
 
-            ByteBuffer inputBuffer = decoder.getInputBuffer(inIndex);
+            ByteBuffer inputBuffer = codec.getInputBuffer(inIndex);
             if (inputBuffer == null) {
                 return;
             }
@@ -86,7 +91,7 @@ public class VideoDecode {
             inputBuffer.clear();
             inputBuffer.put(data);
 
-            decoder.queueInputBuffer(inIndex, 0, size, pts, 0);
+            codec.queueInputBuffer(inIndex, 0, size, pts, 0);
         } catch (IllegalStateException e) {
             Log.e(TAG, "Illegal state while queuing input buffer", e);
         }
@@ -95,7 +100,7 @@ public class VideoDecode {
     private void setupVideoDecoder(Pair<Integer, Integer> videoSize, Surface surface, ByteBuffer csd0, ByteBuffer csd1, Handler playHandler) throws IOException, InterruptedException {
         boolean useH265 = csd1 == null;
         String codecMime = useH265 ? MediaFormat.MIMETYPE_VIDEO_HEVC : MediaFormat.MIMETYPE_VIDEO_AVC;
-        
+
         try {
             String codecName = DecodecTools.getVideoDecoder(useH265);
             if (Objects.equals(codecName, "")) {
@@ -107,9 +112,10 @@ public class VideoDecode {
             Log.w(TAG, "Failed to create decoder by name, falling back to type", e);
             decoder = MediaCodec.createDecoderByType(codecMime);
         }
+        Log.i(TAG, "Using decoder: " + decoder.getName());
 
         MediaFormat decodeFormat = MediaFormat.createVideoFormat(codecMime, videoSize.first, videoSize.second);
-        
+
         ByteBuffer csd0Format = csd0.duplicate();
         csd0Format.position(8);
         decodeFormat.setByteBuffer("csd-0", csd0Format);
@@ -119,6 +125,15 @@ public class VideoDecode {
             csd1Format.position(8);
             decodeFormat.setByteBuffer("csd-1", csd1Format);
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            decodeFormat.setInteger(MediaFormat.KEY_PRIORITY, 0);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            decodeFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
+        }
+        decodeFormat.setInteger("vendor.qti-ext-dec-low-latency.enable", 1);
+        decodeFormat.setInteger("vendor.rtc-ext-dec-low-latency.enable", 1);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && playHandler != null) {
             decoder.setCallback(callback, playHandler);
